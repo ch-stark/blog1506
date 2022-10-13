@@ -110,6 +110,6 @@ As an side, some advantages of this architectur is that it facilitates a "cluste
 
 The model described thus far carries through to multi-cloud architecture in which the clusters for each cloud are managed by a dedicated hub. In turn each of the "leaf" hubs can be managed by a "root" hub (also known as a hub-of-hubs architecture) if there is a requirement to maintain some level of centralised control and compliance. The multi-cloud model does have more flexibility in terms of support for more complex organizational structures such as when dealing with multiple legal entities or divisions, where decentralised IT ownership is still practiced. It also deals well with assymetric cloud architectures.
 
-Conclusion
+##Conclusion
 
 Cluster landing zones are useful to model and implement cluster topologies based on well-defined boundaries within the enterprise and to enable multi-tenancy for application teams using tools such as ArgoCD that integrate with APIs surfaced by ACM that expose cluster grouping and addressability. Using multi-cluster management tools such as RHACM to implement and operate a cluster landing zone makes for a more pleasnat hybrid/multi-cloud adoption journey compared to not having these in place or a manual home-grown approach.
