@@ -21,12 +21,12 @@ Modern computing architectures based around hybrid cloud adoption (defined here 
 What both hybrid and multi-cloud architectures have in common is the segregation of the control plane from the data plane. The control plane (hub in RHACM numenclamenture) centralises all of the cluster management lifecycle functions and higher-level governance controls. It also facilitates distribution of user workloads down to the data plane (managed clusters in RHACM numenclamenture). The distinction between the two models ends there and whereas hybrid cloud architecture coalesce clusters hosted on separate cloud providers into a logically addressable unit managed by single hub (as shown in the first diagram below), the multi-cloud model (shown in the second diagram) operates these as disjoint entities managed by separate hubs. This may be an architectural nicety, but the impact of this is that only with the hybrid cloud model is it possible to run multi-cluster services using technologies such as Submariner which require clusters to be defined within a managed cluster set.
 
 <p align="center">
-  <img src="https://github.com/jwilms1971/blog/blob/main/RHACM%20Operating%20Model%20-%20Hybrid-cloud.png">
+  <img src="https://github.com/jwilms1971/blog/blob/main/acm/RHACM%20Operating%20Model%20-%20Hybrid-cloud.png">
   <em>Diagram 1. Cluster landing zone for a hybrid cloud architecture</em>
 </p>
 
 <p align="center">
-  <img src="https://github.com/jwilms1971/blog/blob/main/RHACM%20Operating%20Model%20-%20Hybrid-cloud.png">
+  <img src="https://github.com/jwilms1971/blog/blob/main/acm/RHACM%20Operating%20Model%20-%20Multi-cloud.png">
   <em>Diagram 2. Cluster landing zone for a multi-cloud architecture</em>
 </p>
 
