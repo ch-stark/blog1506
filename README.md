@@ -18,12 +18,12 @@ What both hybrid and multi-cloud architectures have in common is the segregation
 
 <p align="center">
   <img src="https://github.com/jwilms1971/blog/blob/main/RHACM%20Operating%20Model%20-%20Hybrid-cloud.png">
-  <em>Diagram 1. Cluster landing zone for hybrid cloud architecture</em>
+  <em>Diagram 1. Cluster landing zone for a hybrid cloud architecture</em>
 </p>
 
 <p align="center">
   <img src="https://github.com/jwilms1971/blog/blob/main/RHACM%20Operating%20Model%20-%20Hybrid-cloud.png">
-  <em>Diagram 2. Cluster landing zone for multi-cloud architecture</em>
+  <em>Diagram 2. Cluster landing zone for a multi-cloud architecture</em>
 </p>
 
 From an operational model the diagrams show that cluster provisioning activities including hardening and security are performed by IT Operations / SRE team across the fleet as would be expected with such a centralised model. In addition to that (but not mandatory) is the possibility of leveraging the hub for multi-tenanted application delivery.
