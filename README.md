@@ -18,14 +18,86 @@ What both hybrid and multi-cloud architectures have in common is the segregation
 
 From an operational model the diagrams show that cluster provisioning activities including hardening and security are performed by IT Operations / SRE team across the fleet as would be expected with such a centralised model. In addition to that (but not mandatory) is the possibility of leveraging the hub for multi-tenanted application delivery.
 
-For each application team a set of managed clusters is provisioned by the SRE team and bound to a team-specific namespace that hosts the GitOps engine (ArgoCD). The namespace is bound (via RHACM) to the managed cluster set that encapsulates the managed clusters that were provisioned. This ensures that even if the application team mis-configures their workflow and accidentally target another teams clusters that the effect is nil as only operations against the bound managed cluster set are allowed to go through. Furthermore the applicaiton team cannot run any containers inside this namespace, via Kubernetes RBAC roles assigned to the team they would only have access to placement and application set resources (more details below). If an application team wishes to further sub-divide responsibilities between members of the team, say the one team is allowed to deploy to development clusters but not production clusters then ArgoCD offers RBAC within the tool itself to achieve this finer level of segregation.
+For each application team a set of managed clusters is provisioned by the SRE team and bound to a team-specific namespace that hosts the GitOps engine (ArgoCD). The namespace is bound (via RHACM) to the managed cluster set that encapsulates the managed clusters that were provisioned. This ensures that even if the application team mis-configures their workflow and accidentally target another teams clusters that the effect is nil as only operations against the bound managed cluster set are allowed to go through. Furthermore the applicaiton team cannot run any containers inside this namespace, via Kubernetes RBAC roles assigned to the team they would only have access to placement and application set resources (more details below). If an application team wishes to further sub-divide responsibilities between members of the team, for example only one team member is allowed to deploy to production whilst the others can deploy to non-production then this finer level of segregation can be implemented using the RBAC capabilities within ArgoCD itself.
+
+Labels, claims, placements and application sets are the API constructs the application will use to manage the deployment of their resources. An example based on the diagrams above is given. Let's say that the red wish to deploy their application to production. Here is what they would need to define:
+
+A placement resource that targets the production cluster based on the custom environment label value.
+
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: placement-red-clusters-prod
+  namespace: red-gitops
+spec:
+  predicates:
+  - requiredClusterSelector:
+      labelSelector:
+        matchExpressions:
+          - {key: env, operator: In, values: ["prod"]}
+
+An application set that references the placement.
+
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: my-app
+  namespace: red-gitops
+spec:
+  generators:
+  - clusterDecisionResource:
+      configMapRef: acm-placement
+      labelSelector:
+        matchLabels:
+          cluster.open-cluster-management.io/placement: placement-red-clusters-prod
+      requeueAfterSeconds: 180
+  template:
+    metadata:
+      name: 'my-app-{{name}}'
+    spec:
+      project: default
+      source:
+        repoURL: # valid URL
+        targetRevision: main
+        path: # valid path
+      destination:
+        namespace: my-app
+        server: '{{server}}'
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=true
+          - PruneLast=true
+      automated:
+        prune: true
+        selfHeal: true
+
+And that is everything. Behind the scenes controllers work to evaluate the placement configuration into a valid list of clusters based on the managed cluster set that is bound to the ArgoCD instance. This list will then be iterated over by ArgoCD to generate and apply one application to each matching cluster. The net result is two applications being deployed, one to the production cluster in AWS and the other to the production cluster in GCP.
+
+What is important to note here is that at no time did the application team need to include the name of the cluster. In fact this is discouraged especially in scenarios where cluster names are dynamicaly generated based of cluster claims as described in more detail in this prior blog.
+
+https://cloud.redhat.com/blog/securing-ingress-controllers-on-a-managed-openshift-cluster-using-red-hat-advanced-cluster-management
 
 
+A more complex example leveraging labels and cluster claims in which the application team wish to deploy to non-production in only cloud is as follows:
+
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: placement-red-clusters-prod
+  namespace: red-gitops
+spec:
+  predicates:
+  - requiredClusterSelector:
+      labelSelector:
+        matchExpressions:
+          - {key: env, operator: NotIn, values: ["prod"]}
+      claimSelector:
+        matchExpressions:
+          - {key: platform.open-cluster-management.io, operator: In, values: ["AWS"]}
+
+Unlike labels which are typically user-defined and should be requested at the time of provisioning, cluster claims are auto-generated by the provisioning system within ACM and provide a rich set of semantics that can be used to filter clusters.
 
 
-The cluster landing zone model for a hybrid cloud architecture is shown in the following diagram.
-
-Cluster lifecycle operations are handled by IT Operations / SRE team who is given the cluster-admin role. All operations targeting either the hub or managed clusters are defined using ACM policies and versioned in git. A collection of sample policies can be found here:
 
 The hub also supports multi-tenancy for application teams to rollout their applications to a subset of clusters encapsulated inside of a managed cluster set as defined by the SRE team to which the GitOps engine (ArgoCD) is bound. There is one instance per team and it is possible within the instance to further sub-divide responsibilities (e.g., production vs non-production environments) to specific team members using the ArgoCD project API. In order to limit what the application team can do on the hub they are given access to a very limited set of APIs (placements and applicationsets) with no ability to run pods on the hub itself or view the contents of other namespaces. Thus the hub services as an application launcher and obviates the need to deploy an ArgoCD instance on each managed cluster.
 
