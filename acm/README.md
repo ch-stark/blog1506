@@ -1,4 +1,4 @@
-# Cluster Landing Zone for Hybrid and Multi-cloud Architecture
+# Cluster Landing Zone for Hybrid and Multi-cloud Architectures
 
 Cluster landing zones provide a framework in which common organizational challenges with respect to network segmentation, failure domains and team boundaries when designing cluster deployment topologies for hybrid and multi-cloud architectures can be addressed. This is augmented with an operating model that provides tools and guidance on how to deal with day-to-day operational issues related to cluster lifecycling, application rollout in a multi-tenanted environment, governance, observability and disaster recovery. This article deals with the former as best practices pertaining to the latter is covered by multiple other articles on this blog site covering Red Hat Advanced Cluster Management for Kubernetes (RHACM).
 
