@@ -116,4 +116,4 @@ The model described thus far carries through to multi-cloud architecture in whic
 
 ## Conclusion
 
-Cluster landing zones are useful to model and implement hybrid and multi-cloud topologies based on well-defined trust boundaries within the enterprise. With an appropriate multi-tenancy model and using integrated tooling such as ArgoCD the hub also serves the needs of application teams. Using the various multi-cluster lifecycle, governance, observability tools shipped with RHACM enables the SRE to fully implement and operate a cluster landing zone tailored to the needs of their enterprise.
+Cluster landing zones are useful to model and implement hybrid and multi-cloud topologies based on well-defined trust boundaries within the enterprise. With a carefully considered multi-tenancy model and using integrated tooling such as ArgoCD the hub also serves the needs of application teams. Using the various multi-cluster lifecycle, governance, observability tools shipped with RHACM enables the SRE to fully implement and operate a cluster landing zone tailored to the needs of their enterprise.
