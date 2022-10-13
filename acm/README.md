@@ -1,8 +1,12 @@
 # Cluster Landing Zone for Hybrid and Multi-cloud Architectures
 
+## Overview
+
 Cluster landing zones provide a framework in which common organizational challenges with respect to network segmentation, failure domains and team boundaries when designing cluster deployment topologies for hybrid and multi-cloud architectures can be addressed. This is augmented with an operating model that provides tools and guidance on how to deal with day-to-day operational issues related to cluster lifecycling, application rollout in a multi-tenanted environment, governance, observability and disaster recovery. This article deals with the former as best practices pertaining to the latter is covered by multiple other articles on this blog site covering Red Hat Advanced Cluster Management for Kubernetes (RHACM).
 
-Let's dig a little deeper into what common design challenges enterprises face when migrating to cloud and deploying clusters at scale. Other than the obvious application-level concerns, the next layer down deals with the more challenging aspects of organisational context that manifest themselves as design demarcation points or boundaries, and inform the entprise architect how the cluster landing zone should be translated to the needs of the organization.
+## Designing for Hybrid and Multi-cloud Architectures
+
+Let's dig a little deeper into what common design challenges enterprises face when migrating to cloud and deploying clusters at scale. Other than the obvious application-level concerns, the next layer down deals with the more challenging aspects of organisational context that manifest themselves as design demarcation points or trust boundaries, and inform the entprise architect how the cluster landing zone should be translated to the needs of the organization.
 
 - network (internal-facing vs external-facing)
 - environment (production vs non-production)
@@ -10,7 +14,7 @@ Let's dig a little deeper into what common design challenges enterprises face wh
 - team (often product aligned)
 - domain (business support systems vs product platforms)
 
-Call these trust boundaries if you will as their purpose is to establish an administrative span of control in line with well-estalished architectural principles based on separation of concerns and least privilege amongst others. These boundaries and architectural principles on which they are based need to be reflected in the design of a cluster landing zone and are contributing factors to why a hybrid cloud architecture is distinct from a multi-cloud architecture. 
+The purpose of trust bourndaries is to establish an administrative span of control within the organization and in line with well-estalished architectural principles based on separation of concerns and least privilege amongst others. These boundaries and architectural principles on which they are based need to be reflected in the design of a cluster landing zone and are contributing factors to why a hybrid cloud architecture is distinct from a multi-cloud architecture. 
 
 Modern computing architectures based around hybrid cloud adoption (defined here as a logical coalescing of cloud provider infrastructure into a single addressable unit) and multi-cloud (defined here as a disparate set of cloud provider infrastructure) are often abstracted using self-managing infrastructure orchestration platforms such as OpenShift with a view to enabling container-oriented workloads to run in a resilient, secure and portably manner underpinned by self-service and automation, to a varying degree. 
 
