@@ -160,12 +160,12 @@ Next we will enable layer-3 network connectivity, using Submariner which is part
 	networking:
 	  networkType: OVNKubernetes
 	  clusterNetwork:
-	  - cidr: 10.136.0.0/14
+	  - cidr: 10.132.0.0/14
 	    hostPrefix: 23
 	  machineNetwork:
 	  - cidr: 10.0.0.0/16
 	  serviceNetwork:
-	  - 172.32.0.0/16
+	  - 172.31.0.0/16
 	platform:
 	  gcp:
 	    projectID: # your project 
