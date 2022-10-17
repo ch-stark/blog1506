@@ -2,7 +2,7 @@
 
 ## Overview
 
-In the previous [blog](https://cloud.redhat.com/blog/a-guide-to-cluster-landing-zones-for-hybrid-and-multi-cloud-architectures) the concept of establishing a cluster landing zone to enable hybrid and multi-cloud architectures was explained. In this blog we are going to look at how to realize the cluster landing zone for hybrid cloud to leverage the purported benefits of higher availabilty by distributing a backend database (Postgres) across multiple clusters hosted on different cloud providers thus mitigating the infrequent but yet still ever prevelant risk of one cloud provider experiencing a bad hair day. Other than risk mitigation, this also enables non-impacting operational maintenance windows as well as cluster reboots and rebuilds.
+In the previous [blog](https://cloud.redhat.com/blog/a-guide-to-cluster-landing-zones-for-hybrid-and-multi-cloud-architectures) the concept of establishing a cluster landing zone to enable hybrid and multi-cloud architectures was explained. In this blog we are going to look at how to realize the cluster landing zone for hybrid cloud to leverage the purported benefits of higher availabilty by distributing a backend database (Postgres) across multiple clusters hosted on different cloud providers thus mitigating the infrequent but yet still ever prevelant risk of one cloud provider experiencing a bad hair day. Other than risk mitigation, this also enables non-impacting maintenance windows, testing of failover procedures as well as cluster reboots and rebuilds.
 
 ## Cluster Landing Zone
 
