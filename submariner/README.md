@@ -133,6 +133,8 @@ red-cluster-pool-azure-g76vj   red-cluster-pool-azure-g76vj-worker           wor
 red-cluster-pool-gcp-x5mmj     red-cluster-pool-gcp-x5mmj-backend-worker     backend-worker   red-cluster-pool-gcp-x5mmj     3
 red-cluster-pool-gcp-x5mmj     red-cluster-pool-gcp-x5mmj-worker             worker           red-cluster-pool-gcp-x5mmj     3
 
+From the RHACM UI it is also possible to verify that the machines have been incorporated successfully into the cluster from the Infrastructure/Cluster/Nodes view. 
+
 ## Network Connectivity
 
 Next we will enable layer-3 network connectivity, using Submariner which is part of RHACM, between all of the clusters. This is only possible if all clusters are bound to the same managed cluster set. Layer-3 connectivity enables tunneling of both TCP and UDP protocols which is important for technologies such as Postgres and it's middleware proxy, PgPool-II, which use both to establish heartbeat signalling for quorum. Installing Submariner is outside the scope of this article though (please refer to the [documentation](https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.6/html/add-ons/add-ons-overview#submariner). Suffice it is to note that each cluster participating as a member should be configured with a non-overlapping cluster and service CIDRs. This can be defined inside the ClusterPool install-config secret. For example the install-config referenced by the ClusterPool for GCP looks as follows:
