@@ -174,6 +174,8 @@ Next we will enable layer-3 network connectivity, using Submariner which is part
 
 The addresses for the clusterNetwork and serviceNetwork would be bumped for each ClusterPool so as to ensure non-overlapping CIDRS for connectivity. Check the Submariner add-on UI within RHACM to ensure that all is well with inter-cluster networkconnectivity before proceeding with the next steps.
 
+As a final note it is possible to setup Submariner using policy-driven templating similar to what is shown above with ClusterClaims as part of your provisioning policies set. This would enable automated workflows.
+
 ## Postgres Setup 
 
 
