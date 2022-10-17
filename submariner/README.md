@@ -178,6 +178,10 @@ As a final note it is possible to setup Submariner using policy-driven templatin
 
 ## Postgres Setup 
 
+With the clusters established and inter-connected using secure VXLAN tunnels established by Submariner, the final step is to setup Postgres in a highly-available configuration. For quorum to function properly it is required to have a minimum of three independent failure domains which in this case will be achievable at both a zonal and cloud level, as we don't wish to unecessarily failover to another cloud provider unless all zones are impaired due to a cascading fault. Thus the end result will be that there are a total of nine copies of Postgres running with one being the master servicing reads and writes and configured with streaming replication to the other eight standby replicas services reads and potential failover targets. A detailed introspective of this type of architecture can be found in the [PgPool-II documentation](https://www.pgpool.net/docs/43/en/html/example-cluster.html). PgPool-II is middleware for Posttgres that enables transparent failover from an application perspective amongst other functions such as connection pooling and will need to be deployed to make high-available work in the manner described.
+
+
+
 
 
 
