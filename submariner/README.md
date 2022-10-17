@@ -98,7 +98,7 @@ Finally here are the cluster claims that when submitted result in clusters being
 	spec:
 	  clusterPoolName: red-cluster-pool-3
 
-At this juncture we should have three clusters operational each with 3 control plane nodes and 3 worker nodes assuming default settings were used for the install config. Because these clusters will be running both application (frontend) and database (backend) workloads it is good practice to segregate these types of workloads. To do so we will use the MachinePool API to construct an additional set of worker nodes with appropriate labels and taints so that only backend workloads that match the taint can be hosted. For brevity only the MachinePool configuraiton for GCP is shown (just rinse and repeat for the other cloud provider substituting machine types accordingly).
+At this juncture we should have three clusters operational each with 3 control plane nodes and 3 worker nodes assuming default settings were used for the install config. Because these clusters will be running both application (frontend) and database (backend) workloads it is good practice to segregate these types of workloads. To do so we will use the MachinePool API to construct an additional set of worker nodes with appropriate labels and taints so that only Postgresql components are allowed. For brevity only the MachinePool configuraiton for GCP is shown (rinse and repeat for the other cloud providers and substitute instance types accordingly).
 
 	apiVersion: hive.openshift.io/v1
 	kind: MachinePool
@@ -113,14 +113,16 @@ At this juncture we should have three clusters operational each with 3 control p
 	    node-role.kubernetes.io/backend: ""
 	  taints:
 	  - effect: NoSchedule
-	    key: postgres
+	    key: postgresql
+	  - effect: NoSchedule
+	    key: pgpool
 	  platform:
 	    gcp:
 	      osDisk: {}
 	      type: n1-standard-4
 	  replicas: 3
 
-This looks complex because it is using templating functions to resolve the identity of the dynamically generated name of the cluster that was provisioned by Hive in response to a ClusterClaim. The templates are intended to be processed by the [policyGenerator plugin](https://github.com/stolostron/policy-generator-plugin) as part of an automated policy-driven workflow operated by the SRE team. Alternatively, a manual lookup and substitution can be done. The net result is a cluster with two machine pools per cloud provider.
+This might look complex because it is using templating functions to resolve the identity of dynamically generated cluster names when using ClusterClaims but is actually no different than how PersistentVolumeClaims generate dyanmic names for Perstistent Volumes which most users are familiar with. The templates are intended to be processed by the [policyGenerator plugin](https://github.com/stolostron/policy-generator-plugin) as part of an automated policy-driven workflow operated by the SRE team. For more details abou the policyGenerator plugin please refer to this [blog](https://cloud.redhat.com/blog/generating-governance-policies-using-kustomize-and-gitops).
 
 $ oc get machinepools -A
 NAMESPACE                      NAME                                          POOLNAME         CLUSTERDEPLOYMENT              REPLICAS
