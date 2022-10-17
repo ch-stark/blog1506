@@ -4,7 +4,7 @@
 
 In the previous [blog](https://cloud.redhat.com/blog/a-guide-to-cluster-landing-zones-for-hybrid-and-multi-cloud-architectures) the concept of establishing a cluster landing zone to enable hybrid and multi-cloud architectures was explained. In this blog we are going to look at how to realize the cluster landing zone for hybrid cloud to leverage the purported benefits of higher availabilty by distributing a backend database (Postgres) across multiple clusters hosted on different cloud providers thus mitigating the infrequent but yet still ever prevelant risk of one cloud provider experiencing a bad hair day. Other than risk mitigation, this also enables non-impacting operational maintenance windows as well as cluster reboots and rebuilds.
 
-## Cluster Landing Zone Setup for Hybrid Cloud
+## Cluster Landing Zone
 
 The following diagram depicts the cluster landing zone that we are going to build and the components that will be deployed.
 
@@ -130,6 +130,50 @@ red-cluster-pool-azure-g76vj   red-cluster-pool-azure-g76vj-backend-worker   bac
 red-cluster-pool-azure-g76vj   red-cluster-pool-azure-g76vj-worker           worker           red-cluster-pool-azure-g76vj   3
 red-cluster-pool-gcp-x5mmj     red-cluster-pool-gcp-x5mmj-backend-worker     backend-worker   red-cluster-pool-gcp-x5mmj     3
 red-cluster-pool-gcp-x5mmj     red-cluster-pool-gcp-x5mmj-worker             worker           red-cluster-pool-gcp-x5mmj     3
+
+## Hybrid Connectivity
+
+Next we will enable layer-3 network connectivity, using Submariner which is part of RHACM, between all of the clusters. This is only possible if all clusters are bound to the same managed cluster set. Layer-3 connectivity enables tunneling of both TCP and UDP protocols which is important for technologies such as Postgres and it's middleware proxy, PgPool-II, which use both to establish heartbeat signalling for quorum. Installing Submariner is outside the scope of this article though (please refer to the [documentation](https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.6/html/add-ons/add-ons-overview#submariner). Suffice it is to note that each cluster participating as a member should be configured with a non-overlapping cluster and service CIDRs. This can be defined inside the ClusterPool install-config secret. For example the install-config referenced by the ClusterPool for GCP looks as follows:
+
+	apiVersion: v1
+	metadata:
+	  name: 'gcp-install-config'
+	baseDomain: # your domain
+	controlPlane:
+	  architecture: amd64
+	  hyperthreading: Enabled
+	  name: master
+	  replicas: 3
+	  platform:
+	    gcp:
+	      type: n1-standard-4
+	compute:
+	- hyperthreading: Enabled
+	  architecture: amd64
+	  name: 'worker'
+	  replicas: 3 
+	  platform:
+	    gcp:
+	      type: n1-standard-4
+	networking:
+	  networkType: OVNKubernetes
+	  clusterNetwork:
+	  - cidr: 10.136.0.0/14
+	    hostPrefix: 23
+	  machineNetwork:
+	  - cidr: 10.0.0.0/16
+	  serviceNetwork:
+	  - 172.32.0.0/16
+	platform:
+	  gcp:
+	    projectID: # your project 
+	    region: asia-southeast1
+	pullSecret: ""
+	sshKey: |-
+	    ssh-rsa # your public key
+
+The addresses for the clusterNetwork and serviceNetwork would be bumped for each ClusterPool so as to ensure non-overlapping CIDRS for connectivity. Check the Submariner add-on UI within RHACM to ensure that all is well with inter-cluster networkconnectivity before proceeding with the next steps.
+
 
 
 
