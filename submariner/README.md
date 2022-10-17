@@ -98,6 +98,36 @@ Finally here are the cluster claims that when submitted result in clusters being
 	spec:
 	  clusterPoolName: red-cluster-pool-3
 
+At this juncture we should have three clusters operational each with 3 control plane nodes and 3 worker nodes assuming default settings were used for the install config. Because these clusters will be running both application (frontend) and database (backend) workloads it is good practice to segregate these types of workloads. To do so we will use the MachinePool API to construct an additional set of worker nodes with appropriate labels and taints so that only backend workloads that match the taint can be hosted. For brevity only the MachinePool configuraiton for GCP is shown (just rinse and repeat for the other cloud provider substituting machine types accordingly).
+
+	apiVersion: hive.openshift.io/v1
+	kind: MachinePool
+	metadata:
+	  name: '{{ (lookup "hive.openshift.io/v1" "ClusterClaim" "red-cluster-pool" "red-cluster-2").spec.namespace }}-backend-worker'
+	  namespace: '{{ (lookup "hive.openshift.io/v1" "ClusterClaim" "red-cluster-pool" "red-cluster-2").spec.namespace }}'
+	spec:
+	  clusterDeploymentRef:
+	    name: '{{ (lookup "hive.openshift.io/v1" "ClusterClaim" "red-cluster-pool" "red-cluster-2").spec.namespace }}'
+	  name: backend-worker
+	  labels:
+	    node-role.kubernetes.io/backend: ""
+	  taints:
+	  - effect: NoSchedule
+	    key: postgres
+	  platform:
+	    gcp:
+	      osDisk: {}
+	      type: n1-standard-4
+	  replicas: 3
+
+This looks complex because it is using templating functions to lookup the dynamically generated name of the cluster that was provisioned by Hive in response to a ClusterClaim. The templates are intended to be processed by the policyGenerator [policyGenerator plugin](https://github.com/stolostron/policy-generator-plugin) as part of an automated policy-driven workflow operated by the SRE team. Alternatively, a manual lookup and substitution can be done. The net result is a cluster with two machine pools.
+
+
+
+
+
+ 
+
  
 
 
