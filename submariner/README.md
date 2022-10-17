@@ -120,8 +120,16 @@ At this juncture we should have three clusters operational each with 3 control p
 	      type: n1-standard-4
 	  replicas: 3
 
-This looks complex because it is using templating functions to lookup the dynamically generated name of the cluster that was provisioned by Hive in response to a ClusterClaim. The templates are intended to be processed by the policyGenerator [policyGenerator plugin](https://github.com/stolostron/policy-generator-plugin) as part of an automated policy-driven workflow operated by the SRE team. Alternatively, a manual lookup and substitution can be done. The net result is a cluster with two machine pools.
+This looks complex because it is using templating functions to resolve the identity of the dynamically generated name of the cluster that was provisioned by Hive in response to a ClusterClaim. The templates are intended to be processed by the [policyGenerator plugin](https://github.com/stolostron/policy-generator-plugin) as part of an automated policy-driven workflow operated by the SRE team. Alternatively, a manual lookup and substitution can be done. The net result is a cluster with two machine pools per cloud provider.
 
+$ oc get machinepools -A
+NAMESPACE                      NAME                                          POOLNAME         CLUSTERDEPLOYMENT              REPLICAS
+red-cluster-pool-aws-lt87l     red-cluster-pool-aws-lt87l-backend-worker     backend-worker   red-cluster-pool-aws-lt87l     3
+red-cluster-pool-aws-lt87l     red-cluster-pool-aws-lt87l-worker             worker           red-cluster-pool-aws-lt87l     3
+red-cluster-pool-azure-g76vj   red-cluster-pool-azure-g76vj-backend-worker   backend-worker   red-cluster-pool-azure-g76vj   3
+red-cluster-pool-azure-g76vj   red-cluster-pool-azure-g76vj-worker           worker           red-cluster-pool-azure-g76vj   3
+red-cluster-pool-gcp-x5mmj     red-cluster-pool-gcp-x5mmj-backend-worker     backend-worker   red-cluster-pool-gcp-x5mmj     3
+red-cluster-pool-gcp-x5mmj     red-cluster-pool-gcp-x5mmj-worker             worker           red-cluster-pool-gcp-x5mmj     3
 
 
 
