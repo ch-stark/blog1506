@@ -8,6 +8,10 @@ In this installment we look at extending the cluster landing zone for hybrid clo
 
 In order to run stateful workloads such as databases across a hybrid cloud envvironment we need to extend the original cluster landing zone to cater for DBAs as -class tenants in addition to application teams and cluster administrators (SREs). The revised cluster landing zone looks as per the following diagram.
 
+<p align="center">
+  <img src="https://github.com/jwilms1971/blog/blob/main/submariner/RHACM%20Operating%20Model%20-%20Hybrid-cloud%20extended.png">
+  <em>Diagram 1. Cluster landing zone for a hybrid cloud architecture</em>
+</p>
 
 This modification is required because the alternative approach of granting application teams access to Polices in order to configure databases themselves is considered an anti-pattern in most organizations with respect to the principle of separation of concerns. DBAs can leverage the default OpenShift GitOps (ArgoCD) instance by configuring AppProjects to manage permissions so that DBAs can only deploy to the dba-policies namespace on the hub.
 
