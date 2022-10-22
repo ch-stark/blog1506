@@ -2,9 +2,16 @@
 
 ## Overview
 
-In the previous [blog](https://cloud.redhat.com/blog/a-guide-to-cluster-landing-zones-for-hybrid-and-multi-cloud-architectures) the concept of establishing a cluster landing zone to enable hybrid and multi-cloud architectures was explained. In this blog we are going to look at how to realize the cluster landing zone for hybrid cloud to leverage the purported benefits of higher availabilty by distributing a backend database (Postgres) across multiple clusters hosted on different cloud providers thus mitigating the infrequent but yet still ever prevelant risk of one cloud provider experiencing a bad hair day. Other than risk mitigation, this also enables non-impacting maintenance windows, testing of failover procedures as well as cluster reboots and rebuilds.
+In this installment we look at extending the hybrid cloud architecture introduced [previously](https://cloud.redhat.com/blog/a-guide-to-cluster-landing-zones-for-hybrid-and-multi-cloud-architectures) to support stateful application workloads in addition to stateless ones already covered. We also demonstrate how the architecture deals with disaster scenarios such as the catastrophic failure of a cloud provider. We make extensive useage of various tools within the Red Hat Advanced Cluster Management toolbox and show how these can work together to deliver a robust solution.
 
 ## Cluster Landing Zone
+
+In order to support stateful workloads such as databases we need to extend the original multi-tenancy operating model to now include DBAs in addition to application teams and cluster administrators (SREs). The revised model looks as per this diagram.
+
+
+This extension is required because granting application teams direct access to Policy resources to provision databases and their underpinning resources would be considered an anti-pattern given that the Policy Controller runs with elevated privileges. Separating application concerns from database and cluster concerns by team is a common enterprise practice which the multi-tnancy operating model easily enables.
+
+
 
 The following diagram depicts the cluster landing zone that we are going to build and the components that will be deployed.
 
