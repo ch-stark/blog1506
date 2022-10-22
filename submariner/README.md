@@ -2,17 +2,17 @@
 
 ## Overview
 
-In this installment we look at extending the hybrid cloud architecture introduced [previously](https://cloud.redhat.com/blog/a-guide-to-cluster-landing-zones-for-hybrid-and-multi-cloud-architectures) to support stateful application workloads in addition to stateless ones already covered. We also demonstrate how the architecture deals with disaster scenarios such as the catastrophic failure of a cloud provider. We make extensive useage of various tools within the Red Hat Advanced Cluster Management toolbox and show how these can work together to deliver a robust solution.
+In this installment we look at extending the cluster landing zone for hybrid cloud introduced [previously](https://cloud.redhat.com/blog/a-guide-to-cluster-landing-zones-for-hybrid-and-multi-cloud-architectures) to support stateful application workloads. We also demonstrate how the architecture deals with disaster scenarios such as the catastrophic failure of a cloud provider. We make extensive useage of various tools within the Red Hat Advanced Cluster Management (RHACM) toolbox and show how these can work together to deliver a robust and comprehensive solution which enable the supporting operating model.
 
 ## Cluster Landing Zone
 
-In order to support stateful workloads such as databases we need to extend the original multi-tenancy operating model to now include DBAs in addition to application teams and cluster administrators (SREs). The revised model looks as per this diagram.
+In order to run stateful workloads such as databases across a hybrid cloud envvironment  we need to extend the original multi-tenancy operating model to include DBAs as a distinct role in addition to application teams and cluster administrators (SREs). The revised model looks as per the following diagram.
 
 
-This extension is required because granting application teams direct access to Policy resources to provision databases and their underpinning resources would be considered an anti-pattern given that the Policy Controller runs with elevated privileges. Separating application concerns from database and cluster concerns by team is a common enterprise practice which the multi-tnancy operating model easily enables. Note that in the diagram we show that DBAs will be writing policies into the same namespace as that used by cluster administrators in order to keep things simple. In practice a separate namespace bound to a specific ManagedClusterSet would be recommended to ensure that DBAs cannot read or alter policies written by cluster administrators.
+This extension is required because the alternavit of granting application teams direct access to Policy resources in order to provision databases is considered an anti-pattern given that the Policy Controller runs with elevated privileges. Separating application concerns from database and cluster administrative concerns by team is a common practice which the multi-tenancy operating model that is part of the cluster landing zone can flex to support. Note that in the diagram we show DBAs writing policies into the same namespace as that used by cluster administrators in order to keep things simple. In practice a separate namespace bound to the target ManagedClusterSet is recommended to ensure that DBAs cannot read or alter policies written by cluster administrators.
 
 
-
+The diagram shows separate MachinePools being deployed for fronted (application) workloads and backend (database) workloads. This is done for multiple reasons including to avoid outages due to competition for resources caused by disparate workloads and misconfiguration, reduced impact of cluster upgrades on application/database availability when nodes reboot (assuming workloads are spread across all nodes in the machine pool and that individual machines are hosted in separate availability zones), the ability to select machine types that better match the profile of the workload running on them and to be able to configure tunable parameters for specific performance goals.
 
 
 The following diagram depicts the cluster landing zone that we are going to build and the components that will be deployed.
