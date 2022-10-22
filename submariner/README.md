@@ -4,18 +4,73 @@
 
 In this installment we look at extending the cluster landing zone for hybrid cloud that was introduced [previously](https://cloud.redhat.com/blog/a-guide-to-cluster-landing-zones-for-hybrid-and-multi-cloud-architectures) to support stateful application workloads. We also demonstrate how the architecture deals with disaster scenarios such as the catastrophic failure of a cloud provider. We make extensive useage of various capabilities within the Red Hat Advanced Cluster Management (RHACM) toolbox and show how these can work together to deliver a robust and compelling solution which enables a reference multi-tenancy operating model.
 
-## Cluster Landing Zone
+## Extending the Cluster Landing Zone
 
 In order to run stateful workloads such as databases across a hybrid cloud envvironment we need to extend the cluster landing zone to support DBAs as first-class tenants in addition to application teams and cluster administrators (SREs). The revised cluster landing zone looks as per the following diagram.
 
 
-This extension is required because the alternative approach of granting application teams access to Polices in order to configure databases (described in more detail later) is considered an anti-pattern given that the Policy controller runs with elevated privileges and thus could be used to undermine the safeguards put in place by the cluster administrators. Separating application concerns from database and cluster administrative concerns by team boundary is a common practice which the multi-tenancy operating model being proposed here supports. Note that in the diagram we show DBAs writing policies into the same namespace as that used by cluster administrators in order to keep things simple. In practice a separate namespace bound to the target ManagedClusterSet is recommended to ensure that DBAs cannot read or alter policies written by cluster administrators.
+This extension is required because the alternative approach of granting application teams access to Polices in order to configure databases (described in more detail later) is considered an anti-pattern given that the Policy controller runs with elevated privileges and thus could be used to undermine the safeguards put in place by the cluster administrators. Separating application concerns from database and cluster administrative concerns by team boundary is a common practice which the multi-tenancy operating model being proposed here supports. Note that in the diagram we show DBAs writing policies into their own namespace which are processed by the cluster-wide Policy controller.
 
 The diagram introduces MachinePools which are defined on the hub and used for segregating fronted (application) workloads from backend (database) workloads for a managed cluster. This is done for multiple reasons including to avoid outages due to competition for resources caused by disparate workloads or misconfiguration errors, reduced impact of cluster upgrades on application/database availability when nodes reboot (assuming workloads are spread across all nodes in a machine pool and that machines are distributed across availability zones), the ability to select machine types that better match the profile of a given workload and support bespoke tuning.
 
 The discussion continues with a focus on the configuration of the database for a hybrid cloud setup as details around deploying applications were presented in the previous installment. Also out of scope but worth noting is that it is recommended to deploy global load balancers targeting the ingress endpoint of each cluster and that these should be deployed in a manner that avoids a shared fate situation.
 
-The database shown in the diagram is PostgreSQL and was selected due to it's familiarity and built-in replication with failover capabilities. In addition PgPool is used to provide middleware functions including load-balancing and connection pooling for client applications accessing the database. There are multiple Operators and Helm charts available for installing PostgreSQL and the focus in this article is on what is required to configure the system in the context of hybrid cloud and to support the kind of high availability scenarios we are trying to achieve.
+The database shown in the diagram is PostgreSQL and was selected due to it's familiarity and built-in replication with failover capabilities. In addition PgPool is used to provide middleware functions including load-balancing and connection pooling for client applications accessing the database. There are multiple Operators and Helm charts available for installing PostgreSQL and the focus in this article is on what is required to configure the system in the context of hybrid cloud and to support the kind of high availability scenarios we are trying to achieve. Note that in order to leverage auto-failover and recovery it is required to deploy a PostgreSQL server on at least three nodes to establish quorum. In practice it is recommended to deploy a PostgreSQL server on each node in each availability zone to protect against both zonal and cloud provider failure. For readability purposes, a single PostgreSQL server per cloud provider on one node in each machine pool is being configured.
+
+## Deploying the Cluster Landing Zone
+
+We start of with defining a ManagedClusterSet that serves as a logical grouping mechanism for clusters spawned from each disparate cloud provider infrastructure.
+
+	apiVersion: cluster.open-cluster-management.io/v1beta1
+	kind: ManagedClusterSet
+	metadata:
+	  name: red-cluster-set
+	spec: {}
+
+Next we create and bind the red-policies namespaces to the red-cluster-set so that only policies written here can be deployed to the underlying clusters. If there was another managed cluster set, for example the blue-cluster-set, and we give our DBA read/write access only to the red-policies namespace, then even if they wrote policies that were explicetely targeting clusters in the blue-cluster-set these would come to nought because a binding between the blue-cluster-set and the red-policies namespace does not exist and thus the Policy controller is unable to give effect to the policy. In this manner tenancy isolation boundaries are established.
+
+	apiVersion: cluster.open-cluster-management.io/v1beta1
+	kind: ManagedClusterSetBinding
+	metadata:
+	  name: red-cluster-set
+	  namespace: red-policies
+	spec:
+	  clusterSet: red-cluster-set
+
+
+
+ClusterPools that encapsulate the underlying cloud provider infrastructure. This can be done with the following YAML an example of which is shown for AWS:
+
+	apiVersion: hive.openshift.io/v1
+	kind: ClusterPool
+	metadata:
+	  name: 'red-cluster-pool-aws-1'
+	  namespace: 'red-cluster-pool'
+  	labels:
+	  cloud: 'AWS'
+	  region: 'ap-southeast-1'
+	  vendor: OpenShift
+	  cluster.open-cluster-management.io/clusterset: 'red-cluster-set'
+spec:
+  size: 0
+  runningCount: 0
+  skipMachinePools: false
+  baseDomain: aws.jwilms.net
+  installConfigSecretTemplateRef:
+    name: red-cluster-pool-aws-install-config-1
+  imageSetRef:
+    name: img4.11.2-x86-64-appsub
+  pullSecretRef:
+    name: red-cluster-pool-aws-pull-secret
+  platform:
+    aws:
+      credentialsSecretRef:
+        name: red-cluster-pool-aws-creds
+      region: ap-southeast-1
+
+
+
+
 
 
 
