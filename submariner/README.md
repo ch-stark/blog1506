@@ -98,7 +98,7 @@ To spawn a cluster we need to submit a ClusterClaim (this is similar in concept 
         spec:
           clusterPoolName: red-cluster-pool-3
 
-After some time the resulting list of clusters spawned are as follows.
+After some time the resulting set of clusters spawned are as follows.
 
 	$ oc get managedclusters
 	NAME                             HUB ACCEPTED   MANAGED CLUSTER URLS                                                JOINED   AVAILABLE   AGE
