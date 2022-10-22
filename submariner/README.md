@@ -13,6 +13,8 @@ This extension is required because granting application teams direct access to P
 
 
 
+
+
 The following diagram depicts the cluster landing zone that we are going to build and the components that will be deployed.
 
 
@@ -188,6 +190,10 @@ The addresses for the clusterNetwork and serviceNetwork would be bumped for each
 As a final note it is possible to setup Submariner using policy-driven templating similar to what is shown above with ClusterClaims as part of your provisioning policies set. This would enable automated workflows.
 
 ## Postgres Setup 
+
+Installation of Postgresql can be achieved using Operators or Helm charts and the details of this process are well-covered elsewhere. The post-installation configuraiton however is of particular importance and is where Policies can be used to drive conformance to an internal baseline designed for hybrid cloud deployment.
+
+
 
 With the clusters established and inter-connected using secure VXLAN tunnels established by Submariner, the final step is to setup Postgres in a highly-available configuration. For quorum to function properly it is required to have a minimum of three independent failure domains which in this case will be achievable at both a zonal and cloud level, as we don't wish to unecessarily failover to another cloud provider unless all zones are impaired due to a cascading fault. Thus the end result will be that there are a total of nine copies of Postgres running with one being the master servicing reads and writes and configured with streaming replication to the other eight standby replicas services reads and potential failover targets. A detailed introspective of this type of architecture can be found in the [PgPool-II documentation](https://www.pgpool.net/docs/43/en/html/example-cluster.html). PgPool-II is middleware for Posttgres that enables transparent failover from an application perspective amongst other functions such as connection pooling and will need to be deployed to make high-available work in the manner described.
 
