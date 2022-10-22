@@ -109,7 +109,7 @@ After some time the resulting set of clusters spawned are as follows.
 
 Note that cluster names are dynamically generated in line with the "cattle not pets" paradigm adopted by Kubernetes. This is beneficial because it allows for rapid cluster rebuilds provided we have decoupled our application endpoints from the cluster administration endpoint and are using a restore-from-code approach.
 
-At this stage we have a general purpose application cluster with three control plane nodes and three worker nodes. In the next step we begin to customize the cluster to support both stateless and stateful workloads. To this end we configure an additional MachinePool for each cluster with a node in each availability zone. The following example is for AWS.
+At this stage we have a general purpose application cluster with three control plane nodes and three worker nodes. In the next step we begin to customize the cluster to support both stateless and stateful workloads. To this end we configure an additional MachinePool for each cluster with a node in each availability zone. The following Policy template example is for AWS.
 
 	apiVersion: hive.openshift.io/v1
 	kind: MachinePool
@@ -134,9 +134,9 @@ At this stage we have a general purpose application cluster with three control p
 	      type: m6i.xlarge
 	  replicas: 3
 	
-Note that we use the known static cluster claim name in order to derive the dynamically generated cluster name. This piece of YAML cannot be submitted directly to the API Server but needs to be processed first by the Policy Generator tool into a valid Policy document that in turn is applied to the system via the Policy controller. For more details on this tool please refer to [here](https://cloud.redhat.com/blog/generating-governance-policies-using-kustomize-and-gitops) and [here](https://github.com/stolostron/policy-generator-plugin/blob/main/docs/policygenerator.md).
+Note that we use the known static cluster claim name in order to derive the dynamically generated cluster name. This piece of YAML cannot be submitted directly to the API Server as it is using Go templating and  needs to first be processed by the Policy Generator tool into a valid Policy document that in turn can be applied to the system via the Policy controller. For more details on this tool please refer to [here](https://cloud.redhat.com/blog/generating-governance-policies-using-kustomize-and-gitops) and [here](https://github.com/stolostron/policy-generator-plugin/blob/main/docs/policygenerator.md).
 
-The outcome of this Policy is that each cluster now has two machine pools: one for running application workloads (default workers) and one for database workloads (backend workers) with the underlying machines distributed equally across all availability zones by default.
+The outcome of applying this Policy is that each cluster now has two machine pools: one for running application workloads (default workers) and one for database workloads (backend workers) with the underlying machines distributed equally across all availability zones by default.
 
 	$ oc get machinepools -A
 	NAMESPACE                        NAME                                            POOLNAME         CLUSTERDEPLOYMENT                REPLICAS
@@ -147,14 +147,48 @@ The outcome of this Policy is that each cluster now has two machine pools: one f
 	red-cluster-pool-gcp-1-x5mmj     red-cluster-pool-gcp-1-x5mmj-backend-worker     backend-worker   red-cluster-pool-gcp-1-x5mmj     3
 	red-cluster-pool-gcp-1-x5mmj     red-cluster-pool-gcp-1-x5mmj-worker             worker           red-cluster-pool-gcp-1-x5mmj     3
 
-The next step is to setup layer-3 network connectivity between the clusters across the cloud providers so that technologies such as PostgreSQL and PgPool that leverage both TCP and UDP protocols can communicate seamlessly across the network. To do so requires that we "flatten" the network between them so that pods and services in one cluster have line-of-sight access to pods and services in all of the other clusters (provided that the pods and services are hosted in the same namespace which effectively establishes a trust boundary). Submariner is the tool from the RHACM toolbox that can be used to establish a secure tunnel overlay between the clusters and cloud providers to enable this kind of hybrid network connectivity.
+The next step is to setup layer-3 network connectivity between the clusters across the cloud providers so that technologies such as PostgreSQL and PgPool that leverage both TCP and UDP protocols can communicate seamlessly without requiring NAT. To do so requires that we "flatten" the network between clusters so that pods and services in one cluster have line-of-sight access to pods and services in all of the other clusters (provided that the pods and services are hosted in the same namespace which effectively establishes a trust boundary). Submariner is the tool from the RHACM toolbox that can be used to establish a secure tunnel overlay between the clusters and cloud providers to enable this kind of hybrid network connectivity.
+
+Assuming that the preprequisites as documented [here](https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.6/html/add-ons/add-ons-overview#preparing-selected-hosts-to-deploy-submariner) have been met then the next step is to enable the Submariner add-on in RHACM and configure the broker and gateway nodes for each cluster which in turn will establish VXLAN tunnels for passing IPsec traffic. An example of doing this for clusters hosted on AWS using Policy templates is as follows.
+
+	apiVersion: addon.open-cluster-management.io/v1alpha1
+	kind: ManagedClusterAddOn
+	metadata:
+	  name: submariner
+	  namespace: '{{ (lookup "hive.openshift.io/v1" "ClusterClaim" "red-cluster-pool" "red-cluster-1").spec.namespace }}'
+	spec:
+	  installNamespace: submariner-operator
+	---
+	apiVersion: submariner.io/v1alpha1
+	kind: Broker
+	metadata:
+	  name: submariner-broker
+	  namespace: red-cluster-set-broker
+	spec:
+	  globalnetEnabled: false
+	---
+	apiVersion: submarineraddon.open-cluster-management.io/v1alpha1
+	kind: SubmarinerConfig
+	metadata:
+	  name: submariner
+	  namespace: '{{ (lookup "hive.openshift.io/v1" "ClusterClaim" "red-cluster-pool" "red-cluster-1").spec.namespace }}'
+	spec:
+	  gatewayConfig:
+	    gateways: 2
+	    aws:
+	      instanceType: c5d.large
+	  IPSecNATTPort: 4500
+	  NATTEnable: true
+	  cableDriver: libreswan
+	  credentialsSecret:
+	    name: '{{ (lookup "hive.openshift.io/v1" "ClusterClaim" "red-cluster-pool" "red-cluster-1").spec.namespace }}-aws-creds'
+
+
+## Deploying PostgreSQL
+
+So far all of the steps shown are intended to be performed by the SRE team who administer the cluster fleet. The next set of steps are intended to be performed by the DBA.
 
 ***
-
-So far all of the steps above were performed by the SRE team who administer the hub and cluster fleet. The next set of steps are performed by the DBA.
-
-***
-
 
 
 At this juncture we should have three clusters operational each with 3 control plane nodes and 3 worker nodes assuming default settings were used for the install config. Because these clusters will be running both application (frontend) and database (backend) workloads it is good practice to segregate these types of workloads. To do so we will use the MachinePool API to construct an additional set of worker nodes with appropriate labels and taints so that only Postgresql components are allowed. For brevity only the MachinePool configuraiton for GCP is shown (rinse and repeat for the other cloud providers and substitute instance types accordingly).
