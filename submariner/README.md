@@ -76,7 +76,7 @@ To spawn a cluster we need to submit a ClusterClaim (this is similar in concept 
           labels:
             env: dev
         spec:
-          clusterPoolName: red-cluster-pool-1
+          clusterPoolName: red-cluster-pool-aws-1
         ---
         apiVersion: hive.openshift.io/v1
         kind: ClusterClaim
@@ -86,7 +86,7 @@ To spawn a cluster we need to submit a ClusterClaim (this is similar in concept 
           labels:
             env: dev
         spec:
-          clusterPoolName: red-cluster-pool-2
+          clusterPoolName: red-cluster-pool-azure-1
         ---
         apiVersion: hive.openshift.io/v1
         kind: ClusterClaim
@@ -96,7 +96,7 @@ To spawn a cluster we need to submit a ClusterClaim (this is similar in concept 
           labels:
             env: dev
         spec:
-          clusterPoolName: red-cluster-pool-3
+          clusterPoolName: red-cluster-pool-gcp-1
 
 After some time the resulting set of clusters spawned are as follows.
 
