@@ -149,10 +149,11 @@ The outcome of this Policy is that each cluster now has two machine pools: one f
 
 The next step is to setup layer-3 network connectivity between the clusters across the cloud providers so that technologies such as PostgreSQL and PgPool that leverage both TCP and UDP protocols can communicate seamlessly across the network. To do so requires that we "flatten" the network between them so that pods and services in one cluster have line-of-sight access to pods and services in all of the other clusters (provided that the pods and services are hosted in the same namespace which effectively establishes a trust boundary). Submariner is the tool from the RHACM toolbox that can be used to establish a secure tunnel overlay between the clusters and cloud providers to enable this kind of hybrid network connectivity.
 
-
-
+***
 
 So far all of the steps above were performed by the SRE team who administer the hub and cluster fleet. The next set of steps are performed by the DBA.
+
+***
 
 
 
