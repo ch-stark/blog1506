@@ -37,9 +37,7 @@ Next we create and bind the red-policies namespaces to the red-cluster-set so th
 	spec:
 	  clusterSet: red-cluster-set
 
-
-
-ClusterPools that encapsulate the underlying cloud provider infrastructure. This can be done with the following YAML an example of which is shown for AWS:
+ClusterPools encapsulate the underlying cloud provider cluster configuration and assign any clusters spawned to the red-cluster-set. An example is shown for AWS.
 
 	apiVersion: hive.openshift.io/v1
 	kind: ClusterPool
@@ -51,122 +49,66 @@ ClusterPools that encapsulate the underlying cloud provider infrastructure. This
 	  region: 'ap-southeast-1'
 	  vendor: OpenShift
 	  cluster.open-cluster-management.io/clusterset: 'red-cluster-set'
-spec:
-  size: 0
-  runningCount: 0
-  skipMachinePools: false
-  baseDomain: aws.jwilms.net
-  installConfigSecretTemplateRef:
-    name: red-cluster-pool-aws-install-config-1
-  imageSetRef:
-    name: img4.11.2-x86-64-appsub
-  pullSecretRef:
-    name: red-cluster-pool-aws-pull-secret
-  platform:
-    aws:
-      credentialsSecretRef:
-        name: red-cluster-pool-aws-creds
-      region: ap-southeast-1
-
-
-
-
-
-
-
-
-
-The following diagram depicts the cluster landing zone that we are going to build and the components that will be deployed.
-
-
-For simplicity, the configuration of global load balancers to enable users external to the cluster to continue operation is not shown. Postgres was chosen as the database backend given it's popularity. Similar results should be achievable using other database products.
-
-Before we look at the configuration of the networking layer which is the foundation for inter-cluster connectivty, let's quickly cover the cluster deployment itself and the usage of the MachinePool API made available with Red Hat Advanced Cluster Management (RHACM) that enables the SRE team to isolate the needs of different workloads, in this case application (frontend) and database (backend). In this [blog](https://cloud.redhat.com/blog/securing-ingress-controllers-on-a-managed-openshift-cluster-using-red-hat-advanced-cluster-management) we cover setting up a ClusterPool as a kind of templating engine for spawning clusters on-demand by submitting a ClusterClaim object.
-
-Let's assume we have defined one ClusterPool per cloud provider with an initial pool size of zero. The abbreviated specification is as follows:
-
-	apiVersion: hive.openshift.io/v1
-	kind: ClusterPool
-	metadata:
-	  name: 'red-cluster-pool-1'
-	  namespace: 'red-cluster-pool'
-	  labels:
-	    cloud: 'AWS'
-	    region: 'ap-southeast-1'
-	    vendor: OpenShift
-	    cluster.open-cluster-management.io/clusterset: 'red-cluster-set'
 	spec:
 	  size: 0
-	  ...  
-	---
-	apiVersion: hive.openshift.io/v1
-	kind: ClusterPool
-	metadata:
-	  name: 'red-cluster-pool-2'
-	  namespace: 'red-cluster-pool'
-	  labels:
-	    cloud: 'GCP'
-	    region: 'asia-southeast1'
-	    vendor: OpenShift
-	    cluster.open-cluster-management.io/clusterset: 'red-cluster-set'
-	spec:
-	  size: 0
-	...  
-	apiVersion: hive.openshift.io/v1
-	kind: ClusterPool
-	metadata:
-	  name: 'red-cluster-pool-3'
-	  namespace: 'red-cluster-pool'
-	  labels:
-	    cloud: 'Azure'
-	    region: 'southeastasia'
-	    vendor: OpenShift
-	    cluster.open-cluster-management.io/clusterset: 'red-cluster-set'
-	spec:
-	  size: 0
-	...  
+	  runningCount: 0
+	  skipMachinePools: false
+	  baseDomain: example.com
+	  installConfigSecretTemplateRef:
+	    name: red-cluster-pool-aws-install-config-1
+	  imageSetRef:
+	    name: img4.11.2-x86-64-appsub
+	  pullSecretRef:
+	    name: red-cluster-pool-aws-pull-secret
+	  platform:
+	    aws:
+	      credentialsSecretRef:
+	        name: red-cluster-pool-aws-creds
+	      region: ap-southeast-1
 
-Note that all three ClusterPools are linked into a common ManagedClusterSet defined as follows:
+To spawn a cluster we need to submit a ClusterClaim (this is similar in concept to how a PersistentVolumeClaim results in the creation of a PersistentVolume). The following cluster claims were submitted and reference a ClusterPool mapped to a specific cloud provider. Convenience labels are defined for use later. Note that we do not need to add labels to identify the origin cloud provider as these are auto-generated for us as part of a pre-defined label set.
 
-	apiVersion: cluster.open-cluster-management.io/v1beta1
-	kind: ManagedClusterSet
-	metadata:
-	  name: red-cluster-set
-	spec: {}
+        apiVersion: hive.openshift.io/v1
+        kind: ClusterClaim
+        metadata:
+          name: red-cluster-1
+          namespace: red-cluster-pool
+          labels:
+            env: dev
+        spec:
+          clusterPoolName: red-cluster-pool-1
+        ---
+        apiVersion: hive.openshift.io/v1
+        kind: ClusterClaim
+        metadata:
+          name: red-cluster-2
+          namespace: red-cluster-pool
+          labels:
+            env: dev
+        spec:
+          clusterPoolName: red-cluster-pool-2
+        ---
+        apiVersion: hive.openshift.io/v1
+        kind: ClusterClaim
+        metadata:
+          name: red-cluster-3
+          namespace: red-cluster-pool
+          labels:
+            env: dev
+        spec:
+          clusterPoolName: red-cluster-pool-3
 
-As will be shown later the ManagedClusterSet is key to enabling cross-cluster connectivity and workload distribution.
+After some time the resulting list of clusters spawned are as follows.
 
-Finally here are the cluster claims that when submitted result in clusters being spawned by the Hive API in the underlying cloud provider substrate with an amalgamated set of labels based on what was defined for the ClusterPool and the ClusterClaim.
+	$ oc get managedclusters
+	NAME                             HUB ACCEPTED   MANAGED CLUSTER URLS                                                JOINED   AVAILABLE   AGE
+	local-cluster                    true           https://api.hub-cluster-1.aws.example.com:6443                      True     True        80m
+	red-cluster-pool-aws-1-lxrpv     true           https://api.red-cluster-pool-aws-1-lxrpv.aws.example.com:6443       True     True        32m
+	red-cluster-pool-gcp-1-2zmsv     true           https://api.red-cluster-pool-gcp-1-2zmsv.gcp.example.com:6443       True     True        33m
+	red-cluster-pool-azure-1-g76vj   true           https://api.red-cluster-pool-azure-1-g76vj.azure.example.com:6443   True     True        33m
 
-	apiVersion: hive.openshift.io/v1
-	kind: ClusterClaim
-	metadata:
-	  name: red-cluster-1
-	  namespace: red-cluster-pool
-	  labels:
-	    env: dev
-	spec:
-	  clusterPoolName: red-cluster-pool-1
-	---
-	apiVersion: hive.openshift.io/v1
-	kind: ClusterClaim
-	metadata:
-	  name: red-cluster-2
-	  namespace: red-cluster-pool
-	  labels:
-	    env: dev
-	spec:
-	  clusterPoolName: red-cluster-pool-2
-	---
-	apiVersion: hive.openshift.io/v1
-	kind: ClusterClaim
-	metadata:
-	  name: red-cluster-3
-	  namespace: red-cluster-pool
-	  labels:
-	    env: dev
-	spec:
-	  clusterPoolName: red-cluster-pool-3
+Note that cluster names are dynamically generated in line with the "cattle not pets" paradigm. This is beneficial because it allows for rapid cluster rebuilds provided we have decoupled our application endpoints from the cluster administration endpoint and are using a restore-from-code approach.
+
 
 At this juncture we should have three clusters operational each with 3 control plane nodes and 3 worker nodes assuming default settings were used for the install config. Because these clusters will be running both application (frontend) and database (backend) workloads it is good practice to segregate these types of workloads. To do so we will use the MachinePool API to construct an additional set of worker nodes with appropriate labels and taints so that only Postgresql components are allowed. For brevity only the MachinePool configuraiton for GCP is shown (rinse and repeat for the other cloud providers and substitute instance types accordingly).
 
