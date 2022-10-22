@@ -2,17 +2,24 @@
 
 ## Overview
 
-In this installment we look at extending the cluster landing zone for hybrid cloud introduced [previously](https://cloud.redhat.com/blog/a-guide-to-cluster-landing-zones-for-hybrid-and-multi-cloud-architectures) to support stateful application workloads. We also demonstrate how the architecture deals with disaster scenarios such as the catastrophic failure of a cloud provider. We make extensive useage of various tools within the Red Hat Advanced Cluster Management (RHACM) toolbox and show how these can work together to deliver a robust and comprehensive solution which enable the supporting operating model.
+In this installment we look at extending the cluster landing zone for hybrid cloud that was introduced [previously](https://cloud.redhat.com/blog/a-guide-to-cluster-landing-zones-for-hybrid-and-multi-cloud-architectures) to support stateful application workloads. We also demonstrate how the architecture deals with disaster scenarios such as the catastrophic failure of a cloud provider. We make extensive useage of various tools within the Red Hat Advanced Cluster Management (RHACM) toolbox and show how these can work together to deliver a robust and comprehensive solution which enable the reference operating model for multi-tenancy.
 
 ## Cluster Landing Zone
 
-In order to run stateful workloads such as databases across a hybrid cloud envvironment  we need to extend the original multi-tenancy operating model to include DBAs as a distinct role in addition to application teams and cluster administrators (SREs). The revised model looks as per the following diagram.
+In order to run stateful workloads such as databases across a hybrid cloud envvironment  we need to extend the original reference operating model for multi-tenancy to include DBAs as a distinct role in addition to application teams and cluster administrators (SREs). The revised model looks as per the following diagram.
 
 
 This extension is required because the alternavit of granting application teams direct access to Policy resources in order to provision databases is considered an anti-pattern given that the Policy Controller runs with elevated privileges. Separating application concerns from database and cluster administrative concerns by team is a common practice which the multi-tenancy operating model that is part of the cluster landing zone can flex to support. Note that in the diagram we show DBAs writing policies into the same namespace as that used by cluster administrators in order to keep things simple. In practice a separate namespace bound to the target ManagedClusterSet is recommended to ensure that DBAs cannot read or alter policies written by cluster administrators.
 
 
-The diagram shows separate MachinePools being deployed for fronted (application) workloads and backend (database) workloads. This is done for multiple reasons including to avoid outages due to competition for resources caused by disparate workloads and misconfiguration, reduced impact of cluster upgrades on application/database availability when nodes reboot (assuming workloads are spread across all nodes in the machine pool and that individual machines are hosted in separate availability zones), the ability to select machine types that better match the profile of the workload running on them and to be able to configure tunable parameters for specific performance goals.
+The diagram introduces MachinePools which are defined on the hub for segregating fronted (application) workloads from backend (database) workloads for a managed cluster. This is done for multiple reasons including to avoid outages due to competition for resources caused by disparate workloads and misconfiguration, reduced impact of cluster upgrades on application/database availability when nodes reboot (assuming workloads are spread across all nodes in the machine pool and that individual machines are hosted in separate availability zones), the ability to select machine types that better match the profile of the workload running on them and to be able to configure tunable parameters for specific performance goals.
+
+The discussion continues with a focus on the setup of the database as details around deploying applications were presented in the previous installment. Also out of scope for but worth nothing is that it is recommended to deploy global load balancers that are independent of any of the cloud providers hosting workloads so as to prevent a shared fate situation in case one of the participating cloud providers suffers a catastrophic failure (unless of course the cloud provider operates their global load balancers completely independently of their main sites).
+
+The database shown in the diagram is PostgreSQL and was selected due to it's familiarity and built-in replication with failover capabilities. In addition PgPool is used to provide middleware functions including load-balancing and connection pooling for client applications. There are multiple Operators and Helm charts available for installing PostgreSQL but the focus in this article is on what is required to configure the system to support the kind of high availability scenarios we are hoping to achieve with a hybrid cloud architecture.
+
+
+
 
 
 The following diagram depicts the cluster landing zone that we are going to build and the components that will be deployed.
