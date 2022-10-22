@@ -19,7 +19,7 @@ The database shown in the diagram is PostgreSQL and was selected due to it's fam
 
 ## Deploying the Cluster Landing Zone
 
-We start of with defining a ManagedClusterSet that serves as a logical grouping mechanism for clusters spawned from each disparate cloud provider infrastructure.
+We start of with defining a ManagedClusterSet that serves as a logical grouping mechanism for referencing clusters spawned from all cloud provider infrastructure.
 
 	apiVersion: cluster.open-cluster-management.io/v1beta1
 	kind: ManagedClusterSet
@@ -27,17 +27,17 @@ We start of with defining a ManagedClusterSet that serves as a logical grouping 
 	  name: red-cluster-set
 	spec: {}
 
-Next we create and bind the red-policies namespaces to the red-cluster-set so that only policies written here can be deployed to the underlying clusters. If there was another managed cluster set, for example the blue-cluster-set, and we give our DBA read/write access only to the red-policies namespace, then even if they wrote policies that were explicetely targeting clusters in the blue-cluster-set these would come to nought because a binding between the blue-cluster-set and the red-policies namespace does not exist and thus the Policy controller is unable to give effect to the policy. In this manner tenancy isolation boundaries are established.
+Next we create and bind the dba-policies namespaces to the red-cluster-set so that policies written to this namespace can be deployed to the clusters referenced by a managed cluster set.
 
 	apiVersion: cluster.open-cluster-management.io/v1beta1
 	kind: ManagedClusterSetBinding
 	metadata:
 	  name: red-cluster-set
-	  namespace: red-policies
+	  namespace: dba-policies
 	spec:
 	  clusterSet: red-cluster-set
 
-ClusterPools encapsulate the underlying cloud provider cluster configuration and assign any clusters spawned to the red-cluster-set. An example is shown for AWS.
+ClusterPools encapsulate the underlying cloud provider infrastructure and cluster configuration and assign any clusters spawned to the red-cluster-set. An example is shown for AWS.
 
 	apiVersion: hive.openshift.io/v1
 	kind: ClusterPool
@@ -66,7 +66,7 @@ ClusterPools encapsulate the underlying cloud provider cluster configuration and
 	        name: red-cluster-pool-aws-creds
 	      region: ap-southeast-1
 
-To spawn a cluster we need to submit a ClusterClaim (this is similar in concept to how a PersistentVolumeClaim results in the creation of a PersistentVolume). The following cluster claims were submitted and reference a ClusterPool mapped to a specific cloud provider. Convenience labels are defined for use later. Note that we do not need to add labels to identify the origin cloud provider as these are auto-generated for us as part of a pre-defined label set.
+To spawn a cluster we need to submit a ClusterClaim (this is similar in concept to how a PersistentVolumeClaim results in the creation of a PersistentVolume). The following cluster claims were submitted and reference ClusterPools mapped to cloud providers and specific regions. Convenience labels (e.g., env=dev) are defined for sorting clusters into subsets which was explained in the previous blog. Note that we do not need to add labels to identify the origin cloud provider as these are auto-generated for us as part of a pre-defined label set provided by RHACM.
 
         apiVersion: hive.openshift.io/v1
         kind: ClusterClaim
