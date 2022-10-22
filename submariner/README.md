@@ -9,7 +9,7 @@ In this installment we look at extending the hybrid cloud architecture introduce
 In order to support stateful workloads such as databases we need to extend the original multi-tenancy operating model to now include DBAs in addition to application teams and cluster administrators (SREs). The revised model looks as per this diagram.
 
 
-This extension is required because granting application teams direct access to Policy resources to provision databases and their underpinning resources would be considered an anti-pattern given that the Policy Controller runs with elevated privileges. Separating application concerns from database and cluster concerns by team is a common enterprise practice which the multi-tnancy operating model easily enables.
+This extension is required because granting application teams direct access to Policy resources to provision databases and their underpinning resources would be considered an anti-pattern given that the Policy Controller runs with elevated privileges. Separating application concerns from database and cluster concerns by team is a common enterprise practice which the multi-tnancy operating model easily enables. Note that in the diagram we show that DBAs will be writing policies into the same namespace as that used by cluster administrators in order to keep things simple. In practice a separate namespace bound to a specific ManagedClusterSet would be recommended to ensure that DBAs cannot read or alter policies written by cluster administrators.
 
 
 
