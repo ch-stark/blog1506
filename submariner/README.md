@@ -53,7 +53,7 @@ ClusterPools encapsulate the underlying cloud provider cluster configuration and
 	  size: 0
 	  runningCount: 0
 	  skipMachinePools: false
-	  baseDomain: example.com
+	  baseDomain: aws.example.com
 	  installConfigSecretTemplateRef:
 	    name: red-cluster-pool-aws-install-config-1
 	  imageSetRef:
@@ -103,9 +103,9 @@ After some time the resulting list of clusters spawned are as follows.
 	$ oc get managedclusters
 	NAME                             HUB ACCEPTED   MANAGED CLUSTER URLS                                                JOINED   AVAILABLE   AGE
 	local-cluster                    true           https://api.hub-cluster-1.aws.example.com:6443                      True     True        80m
-	red-cluster-pool-aws-1-lxrpv     true           https://api.red-cluster-pool-aws-1-lxrpv.aws.example.com:6443       True     True        32m
-	red-cluster-pool-gcp-1-2zmsv     true           https://api.red-cluster-pool-gcp-1-2zmsv.gcp.example.com:6443       True     True        33m
+	red-cluster-pool-aws-1-lt87l     true           https://api.red-cluster-pool-aws-1-lt87l.aws.example.com:6443       True     True        32m
 	red-cluster-pool-azure-1-g76vj   true           https://api.red-cluster-pool-azure-1-g76vj.azure.example.com:6443   True     True        33m
+	red-cluster-pool-gcp-1-x5mmj     true           https://api.red-cluster-pool-gcp-1-x5mmj.gcp.example.com:6443       True     True        33m
 
 Note that cluster names are dynamically generated in line with the "cattle not pets" paradigm adopted by Kubernetes. This is beneficial because it allows for rapid cluster rebuilds provided we have decoupled our application endpoints from the cluster administration endpoint and are using a restore-from-code approach.
 
