@@ -134,7 +134,7 @@ At this stage we have a general purpose application cluster with three control p
 	      type: m6i.xlarge
 	  replicas: 3
 	
-Note that we use the known static cluster claim name in order to derive the dynamically generated cluster name. This piece of YAML cannot be submitted directly to the API Server as it is using Go templating and  needs to first be processed by the Policy Generator tool into a valid Policy document that in turn can be applied to the system via the Policy controller. For more details on this tool please refer to [here](https://cloud.redhat.com/blog/generating-governance-policies-using-kustomize-and-gitops) and [here](https://github.com/stolostron/policy-generator-plugin/blob/main/docs/policygenerator.md).
+Note that we use the known static cluster claim name in order to derive the dynamically generated cluster name. This piece of YAML cannot be submitted directly to the API Server as it is using Go templating and  needs to first be processed by the Policy Generator tool into a valid Policy document that in turn can be applied to the system via the Policy controller. For more details on this tool please refer to [here](https://cloud.redhat.com/blog/generating-governance-policies-using-kustomize-and-gitops).
 
 The outcome of applying this Policy is that each cluster now has two machine pools: one for running application workloads (default workers) and one for database workloads (backend workers) with the underlying machines distributed equally across all availability zones by default.
 
