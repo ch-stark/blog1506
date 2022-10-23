@@ -31,7 +31,7 @@ We start of with defining a ManagedClusterSet that serves as a logical grouping 
 	  name: red-cluster-set
 	spec: {}
 
-Next we create and bind the dba-policies namespaces to the red-cluster-set so that policies written to this namespace can be deployed to the clusters referenced by a managed cluster set.
+Next we create and bind the dba-policies namespaces to the red-cluster-set so that policies written to this namespace can be deployed to the clusters referenced by a managed cluster set. We also need to bind the dba-policies namespace to the hub cluster as there are policies required to generate shared configuration information that is required by all PostgreSQL servers as explained later.
 
 	apiVersion: cluster.open-cluster-management.io/v1beta1
 	kind: ManagedClusterSetBinding
@@ -40,6 +40,14 @@ Next we create and bind the dba-policies namespaces to the red-cluster-set so th
 	  namespace: dba-policies
 	spec:
 	  clusterSet: red-cluster-set
+	---
+	apiVersion: cluster.open-cluster-management.io/v1beta1
+	kind: ManagedClusterSetBinding
+	metadata:
+	  name: default
+	  namespace: dba-policies
+	spec:
+	  clusterSet: default
 
 ClusterPools encapsulate the underlying cloud provider infrastructure and cluster configuration and assign any clusters spawned to the red-cluster-set. An example is shown for AWS.
 
