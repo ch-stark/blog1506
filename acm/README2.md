@@ -419,14 +419,7 @@ Now that everything has been setup we can test for two common scenarios. The fir
 
 When the surviving PostgreSQL standby servers detect the loss of the primary PostgreSQL server due to a catastrophic loss or reboot one of them automatically is protomoted to become the new primary PostgreSQL server to which the other standby server connects. PgPool continues to function as before directing queries to the surviving servers as shown in the following output.
 
-When the cluster which was destroyed due to a catastrophic loss is restored is restored with a new name after SRE submit the ClusterClaim (that is the only step required to be performed and why ClusterClaims can contribute significantly to achieving very low RTO targets). MachinePools and Submariner configuration will automatically be triggered post-build provided these policies are left enabled and in enforcing mode. Once the cluster is available the SRE team can inform the DBA team who perform PostgreSQL installation after which the post-installation configuration is automatically performed if the polices are left enabled and in enforcing mode. Note in the output of PgPool that the new cluster names are automatically picked up and configured across all of the surviving PostgreSQL instances.
-
-
-
-
-
-
-
+When the cluster which was destroyed due to a catastrophic loss is restored is restored with a new name after SRE submit the ClusterClaim (that is the only step required to be performed and why ClusterClaims can contribute significantly to achieving very low RTO targets). MachinePools and Submariner configuration will automatically be triggered post-build provided these policies are left enabled and in enforcing mode. Once the cluster is available the SRE team can inform the DBA team who perform PostgreSQL installation after which the post-installation configuration is automatically triggered if the polices are left enabled and in enforcing mode. Note in the output of PgPool that the new cluster names are automatically picked up and configured across all of the surviving PostgreSQL instances.
 
 ## Conclusion
 
