@@ -193,7 +193,6 @@ So far all of the steps shown are intended to be performed by the SREs who are r
 
 Depending on whether you are using Operators or Helm charts to install PostgreSQL the steps may vary and are covered in great detail in many other public sources. Of interest to us here is the post-installation configuration that needs to take place to integrate PostgreSQL with the hybrid cloud network that Submariner has established for us and testing of the failover mechanism in the event of catastrophic loss. As PostgreSQL is deployed using StatefulSets and exposed using a headless service, the underlying endpoints (in this case identified by the prefix of a single PostgreSQL server pod per cluster) needs to be made discoverable across all of the clusters participating in the hybrid cloud network. The following YAML (which can be processed by the Policy Generator shown later) will instruct Submariner to create a globally addressable service endpoint on the clusterset.local domain. See the Submariner [documentation](https://submariner.io/) for more details.
 
-
 	apiVersion: multicluster.x-k8s.io/v1alpha1
 	kind: ServiceExport
 	metadata:
@@ -292,8 +291,6 @@ The next step is to configure the PostgreSQL server and PgPool instance on each 
 	        image: # pgpool container image
 	        name: pgpool
 
-
-
 After running the above through the Policy Generator tool a PostgreSQL server and PgPool instance will be started on each cluster. Review the logs of the primary PostgreSQL server (pg-1) to ensure this worked correctly and that the replication manager has started and is accepting connections from the standby servers.
 
 	LOG:  starting PostgreSQL 14.5 on x86_64-pc-linux-gnu, compiled by gcc (Debian 10.2.1-6) 10.2.1 20210110, 64-bit
@@ -322,7 +319,6 @@ Connect to PgPool and verify the status of all PostgreSQL servers.
 	2       | pg-3-postgresql-ha-postgresql-0.red-cluster-pool-gcp-2-cfqv4.pg-3-postgresql-ha-postgresql-headless.database.svc.clusterset.local | 5432 | up     | up        | 0.333333  | standby | standby | 10      | true              | 0                 |                   |                        | 2022-10-23 02:17:57
 	(3 rows)
 
-
 It is also worth reviewing the service endpointslices created by Submariner on each cluster as ultimately these are critical for sucessful communication between all of the components. Here is an example:
 
 	$ oc get endpointslices
@@ -333,107 +329,6 @@ It is also worth reviewing the service endpointslices created by Submariner on e
 	pg-1-postgresql-ha-postgresql-ktczz                                     IPv4          5432      10.131.2.9   93m
 	pg-2-postgresql-ha-postgresql-headless-red-cluster-pool-azure-1-g76vj   IPv4          5432      10.139.2.6   9m58s
 	pg-3-postgresql-ha-postgresql-headless-red-cluster-pool-gcp-1-x5mmj     IPv4          5432      10.135.2.5   10m
-
-
-
-
-
-
-
-***
-
-
-At this juncture we should have three clusters operational each with 3 control plane nodes and 3 worker nodes assuming default settings were used for the install config. Because these clusters will be running both application (frontend) and database (backend) workloads it is good practice to segregate these types of workloads. To do so we will use the MachinePool API to construct an additional set of worker nodes with appropriate labels and taints so that only Postgresql components are allowed. For brevity only the MachinePool configuraiton for GCP is shown (rinse and repeat for the other cloud providers and substitute instance types accordingly).
-
-	apiVersion: hive.openshift.io/v1
-	kind: MachinePool
-	metadata:
-	  name: '{{ (lookup "hive.openshift.io/v1" "ClusterClaim" "red-cluster-pool" "red-cluster-2").spec.namespace }}-backend-worker'
-	  namespace: '{{ (lookup "hive.openshift.io/v1" "ClusterClaim" "red-cluster-pool" "red-cluster-2").spec.namespace }}'
-	spec:
-	  clusterDeploymentRef:
-	    name: '{{ (lookup "hive.openshift.io/v1" "ClusterClaim" "red-cluster-pool" "red-cluster-2").spec.namespace }}'
-	  name: backend-worker
-	  labels:
-	    node-role.kubernetes.io/backend: ""
-	  taints:
-	  - effect: NoSchedule
-	    key: postgresql
-	  - effect: NoSchedule
-	    key: pgpool
-	  platform:
-	    gcp:
-	      osDisk: {}
-	      type: n1-standard-4
-	  replicas: 3
-
-This might look complex because it is using templating functions to resolve the identity of dynamically generated cluster names when using ClusterClaims but is actually no different than how PersistentVolumeClaims generate dyanmic names for Perstistent Volumes which most users are familiar with. The templates are intended to be processed by the [policyGenerator plugin](https://github.com/stolostron/policy-generator-plugin) as part of an automated policy-driven workflow operated by the SRE team. For more details abou the policyGenerator plugin please refer to this [blog](https://cloud.redhat.com/blog/generating-governance-policies-using-kustomize-and-gitops).
-
-	$ oc get machinepools -A
-	NAMESPACE                      NAME                                          POOLNAME         CLUSTERDEPLOYMENT              REPLICAS
-	red-cluster-pool-aws-lt87l     red-cluster-pool-aws-lt87l-backend-worker     backend-worker   red-cluster-pool-aws-lt87l     3
-	red-cluster-pool-aws-lt87l     red-cluster-pool-aws-lt87l-worker             worker           red-cluster-pool-aws-lt87l     3
-	red-cluster-pool-azure-g76vj   red-cluster-pool-azure-g76vj-backend-worker   backend-worker   red-cluster-pool-azure-g76vj   3
-	red-cluster-pool-azure-g76vj   red-cluster-pool-azure-g76vj-worker           worker           red-cluster-pool-azure-g76vj   3
-	red-cluster-pool-gcp-x5mmj     red-cluster-pool-gcp-x5mmj-backend-worker     backend-worker   red-cluster-pool-gcp-x5mmj     3
-	red-cluster-pool-gcp-x5mmj     red-cluster-pool-gcp-x5mmj-worker             worker           red-cluster-pool-gcp-x5mmj     3
-
-From the RHACM UI it is also possible to verify that the machines have been incorporated successfully into the cluster from the Infrastructure/Cluster/Nodes view. 
-
-## Network Connectivity
-
-Next we will enable layer-3 network connectivity, using Submariner which is part of RHACM, between all of the clusters. This is only possible if all clusters are bound to the same managed cluster set. Layer-3 connectivity enables tunneling of both TCP and UDP protocols which is important for technologies such as Postgres and it's middleware proxy, PgPool-II, which use both to establish heartbeat signalling for quorum. Installing Submariner is outside the scope of this article though (please refer to the [documentation](https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.6/html/add-ons/add-ons-overview#submariner). Suffice it is to note that each cluster participating as a member should be configured with a non-overlapping cluster and service CIDRs. This can be defined inside the ClusterPool install-config secret. For example the install-config referenced by the ClusterPool for GCP looks as follows:
-
-	apiVersion: v1
-	metadata:
-	  name: 'gcp-install-config'
-	baseDomain: # your domain
-	controlPlane:
-	  architecture: amd64
-	  hyperthreading: Enabled
-	  name: master
-	  replicas: 3
-	  platform:
-	    gcp:
-	      type: n1-standard-4
-	compute:
-	- hyperthreading: Enabled
-	  architecture: amd64
-	  name: 'worker'
-	  replicas: 3 
-	  platform:
-	    gcp:
-	      type: n1-standard-4
-	networking:
-	  networkType: OVNKubernetes
-	  clusterNetwork:
-	  - cidr: 10.132.0.0/14
-	    hostPrefix: 23
-	  machineNetwork:
-	  - cidr: 10.0.0.0/16
-	  serviceNetwork:
-	  - 172.31.0.0/16
-	platform:
-	  gcp:
-	    projectID: # your project 
-	    region: asia-southeast1
-	pullSecret: ""
-	sshKey: |-
-	    ssh-rsa # your public key
-
-The addresses for the clusterNetwork and serviceNetwork would be bumped for each ClusterPool so as to ensure non-overlapping CIDRS for connectivity. Check the Submariner add-on UI within RHACM to ensure that all is well with inter-cluster networkconnectivity before proceeding with the next steps.
-
-As a final note it is possible to setup Submariner using policy-driven templating similar to what is shown above with ClusterClaims as part of your provisioning policies set. This would enable automated workflows.
-
-## Postgres Setup 
-
-Installation of Postgresql can be achieved using Operators or Helm charts and the details of this process are well-covered elsewhere. The post-installation configuraiton however is of particular importance and is where Policies can be used to drive conformance to an internal baseline designed for hybrid cloud deployment.
-
-
-
-With the clusters established and inter-connected using secure VXLAN tunnels established by Submariner, the final step is to setup Postgres in a highly-available configuration. For quorum to function properly it is required to have a minimum of three independent failure domains which in this case will be achievable at both a zonal and cloud level, as we don't wish to unecessarily failover to another cloud provider unless all zones are impaired due to a cascading fault. Thus the end result will be that there are a total of nine copies of Postgres running with one being the master servicing reads and writes and configured with streaming replication to the other eight standby replicas services reads and potential failover targets. A detailed introspective of this type of architecture can be found in the [PgPool-II documentation](https://www.pgpool.net/docs/43/en/html/example-cluster.html). PgPool-II is middleware for Posttgres that enables transparent failover from an application perspective amongst other functions such as connection pooling and will need to be deployed to make high-available work in the manner described.
-
-The process of installing Postgresql will not be covered here, as the intent is to describe how to configure Postgresql so that instances can communicate across the cross-cluster network and failover to each other. For simplicity only one instance per cluster per cloud provider will be deployed. This can be extended to three instances per cluster per cloud provider for a production setup.
 
 ## Conclusion
 
