@@ -314,9 +314,9 @@ Connect to PgPool and verify the status of all PostgreSQL servers.
 	postgres=# show pool_nodes;
 	node_id |                                                             hostname                                                              | port | status | pg_status | lb_weight |  role   | pg_role | select_cnt | load_balance_node | replication_delay | replication_state | replication_sync_state | last_status_change  
 	--------+-----------------------------------------------------------------------------------------------------------------------------------+------+--------+-----------+-----------+---------+---------+------------+-------------------+-------------------+-------------------+------------------------+---------------------
-	0       | pg-1-postgresql-ha-postgresql-0.red-cluster-pool-aws-1-245cg.pg-1-postgresql-ha-postgresql-headless.database.svc.clusterset.local | 5432 | up     | up        | 0.333333  | primary | primary | 7       | false             | 0                 |                   |                        | 2022-10-23 02:17:57
-	1       | pg-2-postgresql-ha-postgresql-0.red-cluster-pool-gcp-1-9pvhh.pg-2-postgresql-ha-postgresql-headless.database.svc.clusterset.local | 5432 | up     | up        | 0.333333  | standby | standby | 15      | false             | 0                 |                   |                        | 2022-10-23 02:17:57
-	2       | pg-3-postgresql-ha-postgresql-0.red-cluster-pool-gcp-2-cfqv4.pg-3-postgresql-ha-postgresql-headless.database.svc.clusterset.local | 5432 | up     | up        | 0.333333  | standby | standby | 10      | true              | 0                 |                   |                        | 2022-10-23 02:17:57
+	0       | pg-1-postgresql-ha-postgresql-0.red-cluster-pool-aws-1-lt87l.pg-1-postgresql-ha-postgresql-headless.database.svc.clusterset.local | 5432 | up     | up        | 0.333333  | primary | primary | 7       | false             | 0                 |                   |                        | 2022-10-23 02:17:57
+	1       | pg-2-postgresql-ha-postgresql-0.red-cluster-pool-azure-1-g76vj.pg-2-postgresql-ha-postgresql-headless.database.svc.clusterset.local | 5432 | up     | up        | 0.333333  | standby | standby | 15      | false             | 0                 |                   |                        | 2022-10-23 02:17:57
+	2       | pg-3-postgresql-ha-postgresql-0.red-cluster-pool-gcp-1-x5mmj.pg-3-postgresql-ha-postgresql-headless.database.svc.clusterset.local | 5432 | up     | up        | 0.333333  | standby | standby | 10      | true              | 0                 |                   |                        | 2022-10-23 02:17:57
 	(3 rows)
 
 It is also worth reviewing the service endpointslices created by Submariner on each cluster as ultimately these are critical for sucessful communication between all of the components. Here is an example:
@@ -324,11 +324,11 @@ It is also worth reviewing the service endpointslices created by Submariner on e
 	$ oc get endpointslices
 	NAME                                                                    ADDRESSTYPE   PORTS     ENDPOINTS    AGE
 	pg-1-postgresql-ha-pgpool-545ps                                         IPv4          5432      10.131.0.31  93m
-	pg-1-postgresql-ha-postgresql-headless-red-cluster-pool-aws-1-lt87l     IPv4          5432      10.131.2.9   49m
+	pg-1-postgresql-ha-postgresql-headless-red-cluster-pool-aws-1-lt87l     IPv4          5432      10.131.2.9   93m
 	pg-1-postgresql-ha-postgresql-headless-zwrqj                            IPv4          5432      10.131.2.9   93m
 	pg-1-postgresql-ha-postgresql-ktczz                                     IPv4          5432      10.131.2.9   93m
-	pg-2-postgresql-ha-postgresql-headless-red-cluster-pool-azure-1-g76vj   IPv4          5432      10.139.2.6   9m58s
-	pg-3-postgresql-ha-postgresql-headless-red-cluster-pool-gcp-1-x5mmj     IPv4          5432      10.135.2.5   10m
+	pg-2-postgresql-ha-postgresql-headless-red-cluster-pool-azure-1-g76vj   IPv4          5432      10.139.2.6   93m
+	pg-3-postgresql-ha-postgresql-headless-red-cluster-pool-gcp-1-x5mmj     IPv4          5432      10.135.2.5   93m
 
 ## Conclusion
 
