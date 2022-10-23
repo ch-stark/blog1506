@@ -294,6 +294,23 @@ The next step is to configure the PostgreSQL server and PgPool instance on each 
 
 
 
+After running the above through the Policy Generator tool a PostgreSQL server and PgPool instance will be started on each cluster. Review the logs of the primary PostgreSQL server (pg-1) to ensure this worked correctly and that the replication manager has started and is accepting connections from the standby servers.
+
+	LOG:  starting PostgreSQL 14.5 on x86_64-pc-linux-gnu, compiled by gcc (Debian 10.2.1-6) 10.2.1 20210110, 64-bit
+	LOG:  listening on IPv4 address "0.0.0.0", port 5432
+	LOG:  listening on IPv6 address "::", port 5432
+	LOG:  listening on Unix socket "/tmp/.s.PGSQL.5432"
+	LOG:  database system was shut down at 2022-10-23 01:53:52 GMT
+	LOG:  database system is ready to accept connections
+	 done
+	server started
+	postgresql-repmgr 01:54:42.46 INFO  ==> ** Starting repmgrd **
+	[NOTICE] repmgrd (repmgrd 5.3.2) starting up
+	INFO:  set_repmgrd_pid(): provided pidfile is /tmp/repmgrd.pid
+	[NOTICE] starting monitoring of node "pg-1-postgresql-ha-postgresql-0" (ID: 1000)
+	[NOTICE] monitoring cluster primary "pg-1-postgresql-ha-postgresql-0" (ID: 1000)
+	[NOTICE] new standby "pg-2-postgresql-ha-postgresql-0" (ID: 1001) has connected
+	[NOTICE] new standby "pg-3-postgresql-ha-postgresql-0" (ID: 1002) has connected
 
 
 
