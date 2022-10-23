@@ -212,6 +212,23 @@ Depending on whether you are using Operators or Helm charts to install PostgreSQ
 	  name: pg-3-postgresql-ha-postgresql-headless
 	  namespace: database
 
+Now that the global service names have been defined we need to configure each PostgreSQL server and PgPool instance to communicate with each other using these names. The first step to doing this is to define a common set of configuration properties on the hub so that these can be distributed to each of the managed clusters as a second step. Again the following YAML is intended to be processed by the Policy Generator.
+
+	apiVersion: v1
+	kind: ConfigMap
+	metadata:
+	  name: pg-config
+	  namespace: dba-policies
+	data:
+	  hostname0: 'pg-1-postgresql-ha-postgresql-0.{{- (lookup "hive.openshift.io/v1" "ClusterClaim" "red-cluster-pool" "red-cluster-1").spec.namespace -}}.pg-1-postgresql-ha-postgresql-headless.database.svc.clusterset.local'
+	  hostname1: 'pg-2-postgresql-ha-postgresql-0.{{- (lookup "hive.openshift.io/v1" "ClusterClaim" "red-cluster-pool" "red-cluster-2").spec.namespace -}}.pg-2-postgresql-ha-postgresql-headless.database.svc.clusterset.local'
+	  hostname2: 'pg-3-postgresql-ha-postgresql-0.{{- (lookup "hive.openshift.io/v1" "ClusterClaim" "red-cluster-pool" "red-cluster-3").spec.namespace -}}.pg-3-postgresql-ha-postgresql-headless.database.svc.clusterset.local'
+	  id0: '1000'
+	  id1: '1001'
+	  id2: '1002'
+
+The next step is to configure the PostgreSQL server and PgPool instance on each cluster to use the hostnames and ids for communication and replication. The following YAML accomplishes this by patching the configuration of the default installation of PostgreSQL and PgPool.
+
 
 
 
