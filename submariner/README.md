@@ -191,6 +191,30 @@ Assuming that the preprequisites as documented [here](https://access.redhat.com/
 
 So far all of the steps shown are intended to be performed by the SREs who are responsible for cluster fleet capacity and networking. The next set of steps are intended to be performed by the DBAs using Policy templates that are deployed via OpenShift GitOps into the dba-policies namespace from where they are picked up by the Policy controller and executed on the clusters bound by the managed cluster set. DBAs will only need RBAC permissions for Policies (API group policy.open-cluster-management.io) and Placements (API group cluster.open-cluster-management.io) to perform their role.
 
+Depending on whether you are using Operators or Helm charts to install PostgreSQL the steps may vary and are covered in great detail in many other public sources. Of interest to us here is the post-installation configuration that needs to take place to integrate PostgreSQL with the hybrid cloud network that Submariner has established for us and testing of the failover mechanism in the event of catastrophic loss. As PostgreSQL is deployed using StatefulSets and exposed using a headless service, the underlying endpoints (in this case identified by the prefix of a single PostgreSQL server pod per cluster) needs to be made discoverable across all of the clusters participating in the hybrid cloud network. The following YAML (which can be processed by the Policy Generator shown later) will instruct Submariner to create a globally addressable service endpoint on the clusterset.local domain. See the Submariner [documentation](https://submariner.io/) for more details.
+
+
+	apiVersion: multicluster.x-k8s.io/v1alpha1
+	kind: ServiceExport
+	metadata:
+	  name: pg-1-postgresql-ha-postgresql-headless
+	  namespace: database
+	---
+	apiVersion: multicluster.x-k8s.io/v1alpha1
+	kind: ServiceExport
+	metadata:
+	  name: pg-2-postgresql-ha-postgresql-headless
+	  namespace: database
+	---
+	apiVersion: multicluster.x-k8s.io/v1alpha1
+	kind: ServiceExport
+	metadata:
+	  name: pg-3-postgresql-ha-postgresql-headless
+	  namespace: database
+
+
+
+
 
 
 ***
