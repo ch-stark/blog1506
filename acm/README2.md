@@ -70,7 +70,7 @@ ClusterPools encapsulate the underlying cloud provider infrastructure and cluste
 	        name: red-cluster-pool-aws-creds
 	      region: ap-southeast-1
 
-To spawn a cluster we need to submit a ClusterClaim (this is similar in concept to how a PersistentVolumeClaim results in the creation of a PersistentVolume). The following cluster claims were submitted and reference ClusterPools mapped to cloud providers and specific regions. Convenience labels (e.g., env=dev) are defined for sorting clusters into subsets which was explained in the previous blog. Note that we do not need to add labels to identify the origin cloud provider as these are auto-generated for us as part of a pre-defined label set provided by RHACM.
+To spawn a cluster we need to submit a ClusterClaim (this is similar in concept to how a PersistentVolumeClaim results in the creation of a PersistentVolume). The following cluster claims were submitted and reference ClusterPools mapped to cloud providers and specific regions. Convenience labels (e.g., env=dev, postgresql=pg-X) are defined for placing workloads on the correct clutser by the Policy Generator tool. 
 
         apiVersion: hive.openshift.io/v1
         kind: ClusterClaim
@@ -78,7 +78,8 @@ To spawn a cluster we need to submit a ClusterClaim (this is similar in concept 
           name: red-cluster-1
           namespace: red-cluster-pool
           labels:
-            env: dev
+	    env: dev
+	    postgresql: pg-1
         spec:
           clusterPoolName: red-cluster-pool-aws-1
         ---
@@ -88,7 +89,8 @@ To spawn a cluster we need to submit a ClusterClaim (this is similar in concept 
           name: red-cluster-2
           namespace: red-cluster-pool
           labels:
-            env: dev
+	    env: dev
+	    postgresql: pg-2
         spec:
           clusterPoolName: red-cluster-pool-azure-1
         ---
@@ -98,7 +100,8 @@ To spawn a cluster we need to submit a ClusterClaim (this is similar in concept 
           name: red-cluster-3
           namespace: red-cluster-pool
           labels:
-            env: dev
+	    env: dev
+	    postgresql: pg-3
         spec:
           clusterPoolName: red-cluster-pool-gcp-1
 
@@ -329,6 +332,87 @@ It is also worth reviewing the service endpointslices created by Submariner on e
 	pg-1-postgresql-ha-postgresql-ktczz                                     IPv4          5432      10.131.2.9   93m
 	pg-2-postgresql-ha-postgresql-headless-red-cluster-pool-azure-1-g76vj   IPv4          5432      10.139.2.6   93m
 	pg-3-postgresql-ha-postgresql-headless-red-cluster-pool-gcp-1-x5mmj     IPv4          5432      10.135.2.5   93m
+
+And here is what the the Policy Generation configuration wrapper looks like that was used by the DBA (the configuraiton of the Policy Generation to build the cluster by the SRE team is out of scope for this installment).
+
+	apiVersion: policy.open-cluster-management.io/v1
+	kind: PolicyGenerator
+	metadata:
+	  name: policy-postgresql-provisioning
+	placementBindingDefaults:
+	  name: binding-policy-postgresql-provisioning
+	policyDefaults:
+	  standards:
+	    - NIST SP 800-53
+	  categories:
+	    - CM Configuration Management
+	  controls: 
+	    - CM-2 Baseline Configuration
+	  namespace: dba-policies
+	  complianceType: musthave
+	  remediationAction: enforce
+	  severity: low
+	policies:
+	- name: policy-generate-postgresql-config
+	  manifests:
+	    - path: input-hub-clusters/postgresql/
+	  policySets:
+	    - policyset-hub-clusters
+	- name: policy-patch-postgresql-red-clusters-aws
+	  manifests:
+	    - path: input-standalone-clusters/red/aws/postgresql/
+	  policySets:
+	     - policyset-red-standalone-clusters-aws
+	- name: policy-patch-postgresql-red-clusters-azure
+	  manifests:
+	    - path: input-standalone-clusters/red/azure/postgresql/
+	  policySets:
+	     - policyset-red-standalone-clusters-gcp
+	- name: policy-patch-postgresql-red-clusters-gcp
+	  manifests:
+	    - path: input-standalone-clusters/red/gcp/postgresql/
+	  policySets:
+	     - policyset-red-standalone-clusters-gcp
+	policySets:
+	  - description: This policy set is focused on PostgreSQL components for the ACM hub.
+	    name: policyset-hub-clusters
+	    placement:
+	      placementPath: input/placement-hub-clusters.yaml
+	  - description: This policy set is focused on PostgreSQL components for managed OpenShift clusters on AWS.
+	    name: policyset-red-standalone-clusters-aws
+	    placement:
+	      placementPath: input/placement-red-standalone-clusters-aws.yaml
+	  - description: This policy set is focused on PostgreSQL components for managed OpenShift clusters on Azure.
+	    name: policyset-red-standalone-clusters-azure
+	    placement:
+	      placementPath: input/placement-red-standalone-clusters-azure.yaml
+	  - description: This policy set is focused on PostgreSQL components for managed OpenShift clusters on GCP.
+	    name: policyset-red-standalone-clusters-gcp
+	    placement:
+	      placementPath: input/placement-red-standalone-clusters-gcp.yaml
+
+An example placement for targeting development clusters in AWS labeled for PostgreSQL deployment is as follows:
+
+	apiVersion: cluster.open-cluster-management.io/v1beta1
+	kind: Placement
+	metadata:
+	  name: placement-red-standalone-clusters-aws
+	  namespace: dba-policies
+	spec:
+	  clusterSets:
+	    - red-cluster-set
+	  predicates:
+	  - requiredClusterSelector:
+	      labelSelector:
+	        matchExpressions:
+	          - {key: vendor, operator: In, values: ["OpenShift"]}
+                  - {key: name, operator: NotIn, values: ["local-cluster"]}
+                  - {key: env, operator: In, values: ["dev"]}
+                  - {key: postgresql, operator: In, values: ["pg-1"]}
+
+
+Note that two of these labels (env and postgresql) were defined in the ClusterClaim. The other two are auto-populated by Hive as part of the provisioning process and ensure we are only deploying to OpenShift clusters and not on the hub itself. Also note that we explictely filter on the red-cluster-set in case the dba-policies namespace is bound to other managed cluster sets in future.
+
 
 ## Conclusion
 
