@@ -227,7 +227,69 @@ Now that the global service names have been defined we need to configure each Po
 	  id1: '1001'
 	  id2: '1002'
 
-The next step is to configure the PostgreSQL server and PgPool instance on each cluster to use the hostnames and ids for communication and replication. The following YAML accomplishes this by patching the configuration of the default installation of PostgreSQL and PgPool.
+The next step is to configure the PostgreSQL server and PgPool instance on each cluster to use these hostnames and ids for communication and data replication. The following YAML accomplishes this by patching the configuration of the installed PostgreSQL statefulset and PgPool deployment with values extracted from the configmap resource. An example is shown for the PostgreSQL server and PgPool on AWS identified by the prefix pg-1 as per the diagram above.
+
+	apiVersion: apps/v1
+	kind: StatefulSet
+	metadata:
+	  name: pg-1-postgresql-ha-postgresql
+	  namespace: database
+	spec:
+	  replicas: 1
+	  selector:
+	    matchLabels:
+	      app.kubernetes.io/component: postgresql
+	      app.kubernetes.io/instance: pg-1
+	  template:
+	    metadata:
+	      labels:
+	        app.kubernetes.io/component: postgresql
+	        app.kubernetes.io/instance: pg-1
+	    spec:
+	      containers:
+	      - env:
+	        - name: REPMGR_PARTNER_NODES
+	          value: '{{hub fromConfigMap "" "pg-config" (printf "hostname0") hub}},{{hub fromConfigMap "" "pg-config" (printf "hostname1") hub}},{{hub fromConfigMap "" "pg-config" (printf "hostname2") hub}}'
+	        - name: REPMGR_PRIMARY_HOST
+	          value: '{{hub fromConfigMap "" "pg-config" (printf "hostname0") hub}}'
+	        - name: REPMGR_NODE_ID
+	          value: '{{hub fromConfigMap "" "pg-config" (printf "id0") hub}}'
+	        - name: REPMGR_NODE_NETWORK_NAME
+	          value: '{{hub fromConfigMap "" "pg-config" (printf "hostname0") hub}}'
+	        image: # postgresql container image
+	        name: postgresql
+	      initContainers:
+	      - image: # postgresql container image
+	        name: init-chmod-data
+	---
+	apiVersion: apps/v1
+	kind: Deployment
+	metadata:
+	  name: pg-1-postgresql-ha-pgpool
+	  namespace: database
+	spec:
+	  replicas: 1
+	  selector:
+	    matchLabels:
+	      app.kubernetes.io/component: pgpool
+	      app.kubernetes.io/instance: pg-1
+	    spec:
+	  template:
+	    metadata:
+	      labels:
+	        app.kubernetes.io/component: pgpool
+	        app.kubernetes.io/instance: pg-1
+	    spec:
+	      containers:
+	      - env:
+	        - name: PGPOOL_BACKEND_NODES
+                  value: '0:{{hub fromConfigMap "" "pg-config" (printf "hostname0") hub}}:5432,1:{{hub fromConfigMap "" "pg-config" (printf "hostname1") hub}}:5432,2:{{hub fromConfigMap "" "pg-config" (printf "hostname2") hub}}:5432'
+	        image: # pgpool container image
+	        name: pgpool
+
+
+
+
 
 
 
