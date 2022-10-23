@@ -153,7 +153,7 @@ The outcome of applying this Policy is that each cluster now has two machine poo
 
 The next step is to setup layer-3 network connectivity between the clusters across the cloud providers so that technologies such as PostgreSQL and PgPool that leverage both TCP and UDP protocols can communicate seamlessly without requiring NAT. To do so requires that we "flatten" the network between clusters so that pods and services in one cluster have line-of-sight access to pods and services in all of the other clusters (provided that the pods and services are hosted in the same namespace which effectively establishes a trust boundary). Submariner is the tool from the RHACM toolbox that can be used to establish a secure tunnel overlay between the clusters and cloud providers to enable this kind of hybrid network connectivity.
 
-Assuming that the preprequisites as documented [here](https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.6/html/add-ons/add-ons-overview#preparing-selected-hosts-to-deploy-submariner) have been met then the next step is to enable the Submariner add-on in RHACM and configure the broker and gateway nodes for each cluster which in turn will establish VXLAN tunnels for passing IPsec traffic. An example of doing this for clusters hosted on AWS using Policy templates is as follows.
+Assuming that the preprequisites as documented [here](https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.6/html/add-ons/add-ons-overview#preparing-selected-hosts-to-deploy-submariner) have been met then the next step is to enable the Submariner add-on in RHACM, configure the broker and gateway nodes for each cluster which will result in VXLAN tunnels being established between the gateway nodes for passing IPsec traffic. An example of deploying this for clusters hosted on AWS using Policy templates is as follows.
 
 	apiVersion: addon.open-cluster-management.io/v1alpha1
 	kind: ManagedClusterAddOn
@@ -187,10 +187,11 @@ Assuming that the preprequisites as documented [here](https://access.redhat.com/
 	  credentialsSecret:
 	    name: '{{ (lookup "hive.openshift.io/v1" "ClusterClaim" "red-cluster-pool" "red-cluster-1").spec.namespace }}-aws-creds'
 
-
 ## Deploying PostgreSQL
 
-So far all of the steps shown are intended to be performed by the SRE team who administer the cluster fleet. The next set of steps are intended to be performed by the DBA.
+So far all of the steps shown are intended to be performed by the SREs who are responsible for cluster fleet capacity and networking. The next set of steps are intended to be performed by the DBAs using Policy templates that are deployed via OpenShift GitOps into the dba-policies namespace from where they are picked up by the Policy controller and executed on the clusters bound by the managed cluster set. DBAs will only need RBAC permissions for Policies (API group policy.open-cluster-management.io) and Placements (API group cluster.open-cluster-management.io) to perform their role.
+
+
 
 ***
 
