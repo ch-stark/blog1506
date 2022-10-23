@@ -312,6 +312,17 @@ After running the above through the Policy Generator tool a PostgreSQL server an
 	[NOTICE] new standby "pg-2-postgresql-ha-postgresql-0" (ID: 1001) has connected
 	[NOTICE] new standby "pg-3-postgresql-ha-postgresql-0" (ID: 1002) has connected
 
+It is also worth reviewing the service endpointslices created by Submariner on each cluster as ultimately these are critical for sucessful communication between all of the components. Here is an example:
+
+	$ oc get endpointslices
+	NAME                                                                    ADDRESSTYPE   PORTS     ENDPOINTS    AGE
+	pg-1-postgresql-ha-pgpool-545ps                                         IPv4          <unset>   <unset>      93m
+	pg-1-postgresql-ha-postgresql-headless-red-cluster-pool-aws-1-lt87l     IPv4          5432      10.131.2.9   49m
+	pg-1-postgresql-ha-postgresql-headless-zwrqj                            IPv4          5432      10.131.2.9   93m
+	pg-1-postgresql-ha-postgresql-ktczz                                     IPv4          5432      10.131.2.9   93m
+	pg-2-postgresql-ha-postgresql-headless-red-cluster-pool-azure-1-g76vj   IPv4          5432      10.139.2.6   9m58s
+	pg-3-postgresql-ha-postgresql-headless-red-cluster-pool-gcp-1-x5mmj     IPv4          5432      10.135.2.5   10m
+
 
 
 
