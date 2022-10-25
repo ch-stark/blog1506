@@ -9,7 +9,7 @@ In this installment we look at extending the cluster landing zone for hybrid clo
 In order to run stateful workloads such as databases across a hybrid cloud envvironment we need to extend the original cluster landing zone to cater for DBAs as -class tenants in addition to application teams and cluster administrators (SREs). The revised cluster landing zone looks as per the following diagram.
 
 <p align="center">
-  <img src="https://github.com/jwilms1971/blog/blob/main/acm/RHACM%20Operating%20Model%20-%20Hybrid-cloud%20advanced.png">
+  <img src="https://github.com/jwilms1971/blog/blob/main/acm/Cluster%20Landing%20Zones%20-%20Hybrid-cloud%20advanced.png">
   <em>Diagram 1. Cluster landing zone for a hybrid cloud architecture</em>
 </p>
 
