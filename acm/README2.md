@@ -515,4 +515,4 @@ This failover and restore process is also transparent to applications and client
 
 ## Conclusion
 
-In this installment we have extended the original cluster landing zone for hybrid cloud to support both stateless and stateful workloads and by distributing these workloads across multiple cloud providers we can protect ourselves from failures limited to a single node or availability zone, as well as larger-scale events such as the catastrophic loss of a cloud provider or region due to cascading failures or misconfiguration errors. The dynamic cluster generation capabilities of RHACM along with Policy templating and Submariner for hybrid network connectivity are key to building out this capability and enabling it within the context of a multi-tenanted operating model for managing the cluster fleet.
+In this blog we have shown how tools from the RHACM toolbox can be used together to build non-trivial hybrid cloud architectures with higher levels of availability, scaleability, and which is underpinned by an extensible multi-tenant operating model that forms the basis of a cluster landing zone.
