@@ -9,7 +9,7 @@ In this installment we look at extending the cluster landing zone for hybrid clo
 In order to run stateful workloads such as databases across a hybrid cloud envvironment we need to extend the original cluster landing zone to cater for DBAs as -class tenants in addition to application teams and cluster administrators (SREs). The revised cluster landing zone looks as per the following diagram.
 
 <p align="center">
-  <img src="https://github.com/jwilms1971/blog/blob/main/acm/RHACM%20Operating%20Model%20-%20Hybrid-cloud%20extended.png">
+  <img src="https://github.com/jwilms1971/blog/blob/main/acm/RHACM%20Operating%20Model%20-%20Hybrid-cloud%20advanced.png">
   <em>Diagram 1. Cluster landing zone for a hybrid cloud architecture</em>
 </p>
 
@@ -423,7 +423,49 @@ Note that two of these labels (env and postgresql) were defined in the ClusterCl
 
 ## Testing
 
-Now that everything has been setup we can test for two common scenarios. The first is maintenance windows during which clusters are rebooted either due to an upgrade or because it is requested, and the other is unexpected catastraphic loss either due to an incident or misconfiguraiton in the cloud provider infrastructure that causes cascading failures. Both events are handled similarly from a PostgreSQL perspective in terms of triggering a failover to another standby server in the event that it is the cluster hosting the primary server that is affected. The difference arises beween the fact that when a cluster needs to be rebooted this is done from the RHACM console by placing the cluster in and out of hibernation. When the cluster comes out of hibernation it has the same name as before and the PostgreSQL server and PgPool can rely upon this fact during their starting cycle. In the event of a catastrophic failure the entire cluster could be lost and thus the process would entail submitting a ClusterClaim for the affected cluster using the same ClusterClaim name as the original. However because ClusterClaims result in the dynamic generation of a cluster name which will most likely be different this time the global service names that PostgreSQL and PgPool rely upon need to be updated. This would be tedious to do if we didn't use RHACM Policies and the Policy Generator tool which can do all this for us automatically provided we have set enforcing mode on the policy. The following shows how this works out in practice based on the configuration and status shown above which servers as the starting point for the test case.
+Now that everything has been setup we can similuate the catastrophic loss of a cloud provider by using the hibernate capability in RHACM to stop the cluster running the primary PostgreSQL server without first notifying the standby. Before we start let's review the runtime environment. From an OpenShift/Kubernetes perspective we first check the status of all relevant resources to ensure everything is running and that all global endpoints have their IP addresses defined.
+
+$ oc --context red-1 get pods,endpointslices
+NAME                                             READY   STATUS    RESTARTS   AGE
+pod/pg-1-postgresql-ha-pgpool-57cdbb475b-l44cn   0/1     Running   0          12m
+pod/pg-1-postgresql-ha-pgpool-57cdbb475b-l5w89   0/1     Running   0          12m
+pod/pg-1-postgresql-ha-pgpool-57cdbb475b-s5gqj   0/1     Running   0          12m
+pod/pg-1-postgresql-ha-postgresql-0              1/1     Running   0          12m
+
+NAME                                                         STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+persistentvolumeclaim/data-pg-1-postgresql-ha-postgresql-0   Bound    pvc-f189e06a-5e44-4bd4-8299-60e69af3dda3   8Gi        RWO            gp3-csi        12m
+
+NAME                                                                                                 ADDRESSTYPE   PORTS   ENDPOINTS                             AGE
+endpointslice.discovery.k8s.io/pg-1-postgresql-ha-pgpool-q8548                                       IPv4          5432    10.129.2.22,10.131.0.25,10.128.2.26   16m
+endpointslice.discovery.k8s.io/pg-1-postgresql-ha-postgresql-6xn6d                                   IPv4          5432    10.129.2.24                           16m
+endpointslice.discovery.k8s.io/pg-1-postgresql-ha-postgresql-headless-red-cluster-pool-aws-1-m59kf   IPv4          5432    10.129.2.24                           12m
+endpointslice.discovery.k8s.io/pg-1-postgresql-ha-postgresql-headless-zd5q2                          IPv4          5432    10.129.2.24                           16m
+endpointslice.discovery.k8s.io/pg-2-postgresql-ha-postgresql-headless-red-cluster-pool-gcp-1-p9sbw   IPv4          5432    10.134.2.6                            13m
+
+$ oc --context red-2 get pods,endpointslices
+NAME                                             READY   STATUS    RESTARTS   AGE
+pod/pg-2-postgresql-ha-pgpool-8657cc9794-6ztt2   0/1     Running   0          13m
+pod/pg-2-postgresql-ha-pgpool-8657cc9794-ch52v   0/1     Running   0          13m
+pod/pg-2-postgresql-ha-pgpool-8657cc9794-k85q6   0/1     Running   0          13m
+pod/pg-2-postgresql-ha-postgresql-0              1/1     Running   0          13m
+
+NAME                                                         STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+persistentvolumeclaim/data-pg-2-postgresql-ha-postgresql-0   Bound    pvc-88b58b27-d188-4c2e-b84e-dc1e56ea4100   8Gi        RWO            standard-csi   13m
+
+NAME                                                                                                 ADDRESSTYPE   PORTS   ENDPOINTS                             AGE
+endpointslice.discovery.k8s.io/pg-1-postgresql-ha-postgresql-headless-red-cluster-pool-aws-1-m59kf   IPv4          5432    10.129.2.24                           13m
+endpointslice.discovery.k8s.io/pg-2-postgresql-ha-pgpool-tsnrn                                       IPv4          5432    10.133.2.33,10.132.2.22,10.135.0.19   16m
+endpointslice.discovery.k8s.io/pg-2-postgresql-ha-postgresql-2r5d7                                   IPv4          5432    10.134.2.6                            16m
+endpointslice.discovery.k8s.io/pg-2-postgresql-ha-postgresql-headless-k5s9m                          IPv4          5432    10.134.2.6                            16m
+endpointslice.discovery.k8s.io/pg-2-postgresql-ha-postgresql-headless-red-cluster-pool-gcp-1-p9sbw   IPv4          5432    10.134.2.6                            13m
+
+
+
+a running cluster which will  and then resume it to see how the solution recovers thus simulating the restoration of the cloud provider service.
+
+test for two common scenarios. The first is maintenance windows during which clusters are rebooted either due to an upgrade or because it is requested, and the other is a catastraphic loss typically due to a misconfiguration resulting in a cascading failure impacting all availability zones.
+
+ either due to an incident or misconfiguraiton in the cloud provider infrastructure that causes cascading failures. Both events are handled similarly from a PostgreSQL perspective in terms of triggering a failover to another standby server in the event that it is the cluster hosting the primary server that is affected. The difference arises beween the fact that when a cluster needs to be rebooted this is done from the RHACM console by placing the cluster in and out of hibernation. When the cluster comes out of hibernation it has the same name as before and the PostgreSQL server and PgPool can rely upon this fact during their starting cycle. In the event of a catastrophic failure the entire cluster could be lost and thus the process would entail submitting a ClusterClaim for the affected cluster using the same ClusterClaim name as the original. However because ClusterClaims result in the dynamic generation of a cluster name which will most likely be different this time the global service names that PostgreSQL and PgPool rely upon need to be updated. This would be tedious to do if we didn't use RHACM Policies and the Policy Generator tool which can do all this for us automatically provided we have set enforcing mode on the policy. The following shows how this works out in practice based on the configuration and status shown above which servers as the starting point for the test case.
 
 When the surviving PostgreSQL standby servers detect the loss of the primary PostgreSQL server due to a catastrophic loss or reboot one of them automatically is protomoted to become the new primary PostgreSQL server to which the other standby server connects. PgPool continues to function as before directing queries to the surviving servers as shown in the following output.
 
@@ -434,6 +476,37 @@ When the surviving PostgreSQL standby servers detect the loss of the primary Pos
 	1       | pg-2-postgresql-ha-postgresql-0.red-cluster-pool-gcp-1-rmkj4.pg-2-postgresql-ha-postgresql-headless.database.svc.clusterset.local | 5432 | up     | up        | 0.333333  | primary | primary | 22     | true              | 0                 |                   |                        | 2022-10-23 05:57:50
 	2       | pg-3-postgresql-ha-postgresql-0.red-cluster-pool-gcp-2-cvsv8.pg-3-postgresql-ha-postgresql-headless.database.svc.clusterset.local | 5432 | up     | up        | 0.333333  | standby | standby | 21     | false             | 0                 |                   |                        | 2022-10-23 05:48:33
 	(3 rows)
+
+
+After a while one of the standby servers is promoted to the primary role and the other standby begins to follow it. This can be seen from the logs.
+
+[2022-10-23 06:53:46] [NOTICE] node 1001 has recovered, reconnecting
+[2022-10-23 06:53:46] [NOTICE] notifying node "pg-3-postgresql-ha-postgresql-0" (ID: 1002) to follow node 1001
+INFO:  node 1002 received notification to follow node 1001
+[2022-10-23 06:53:46] [NOTICE] monitoring cluster primary "pg-2-postgresql-ha-postgresql-0" (ID: 1001)
+[2022-10-23 06:54:52] [NOTICE] new standby "pg-3-postgresql-ha-postgresql-0" (ID: 1002) has connected
+
+This can also be verified from pgpool
+
+
+postgres=# show pool_nodes;
+ node_id |                                                             hostname                                                              | port | status | pg_status | lb_weight |  role   | pg_role | select_c
+nt | load_balance_node | replication_delay | replication_state | replication_sync_state | last_status_change  
+---------+-----------------------------------------------------------------------------------------------------------------------------------+------+--------+-----------+-----------+---------+---------+---------
+---+-------------------+-------------------+-------------------+------------------------+---------------------
+ 0       | pg-1-postgresql-ha-postgresql-0.red-cluster-pool-aws-1-84zlh.pg-1-postgresql-ha-postgresql-headless.database.svc.clusterset.local | 5432 | down   | down      | 0.333333  | standby | unknown | 9       
+   | false             | 0                 |                   |                        | 2022-10-23 06:53:45
+ 1       | pg-2-postgresql-ha-postgresql-0.red-cluster-pool-gcp-1-rmkj4.pg-2-postgresql-ha-postgresql-headless.database.svc.clusterset.local | 5432 | up     | up        | 0.333333  | primary | primary | 24      
+   | true              | 0                 |                   |                        | 2022-10-23 06:53:45
+ 2       | pg-3-postgresql-ha-postgresql-0.red-cluster-pool-gcp-2-cvsv8.pg-3-postgresql-ha-postgresql-headless.database.svc.clusterset.local | 5432 | up     | up        | 0.333333  | standby | standby | 25      
+   | false             | 0                 |                   |                        | 2022-10-23 06:44:58
+(3 rows)
+
+
+Once the original cluster returns out of hibernation mode it rejoins the PostgreSQL cluster but this time as a standby server.
+
+
+
 
 
 When the cluster which was destroyed due to a catastrophic loss is restored is restored with a new name after SRE submit the ClusterClaim (that is the only step required to be performed and why ClusterClaims can contribute significantly to achieving very low RTO targets). MachinePools and Submariner configuration will automatically be triggered post-build provided these policies have set enforcing mode. Once the cluster is available the SRE team can inform the DBA team who perform PostgreSQL installation after which the post-installation configuration is automatically triggered if the polices set enforcing mode. The policy templating will pick up the new configuration values from the hub and push them through to the all of the PostgreSQL and PgPool instances so that they are updated accordingly.
