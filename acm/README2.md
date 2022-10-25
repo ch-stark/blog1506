@@ -515,4 +515,4 @@ This failover and restore process is also transparent to applications and client
 
 ## Conclusion
 
-In this blog we have shown how tools from the RHACM toolbox can be used together to build non-trivial hybrid cloud architectures with higher levels of availability, scaleability, and which is underpinned by an extensible multi-tenant operating model that forms the basis of a cluster landing zone.
+In this blog we have shown how tools from the RHACM toolbox can be used together to build non-trivial hybrid cloud architectures with higher levels of availability and scaleability. The architecture is underpinned by an extensible multi-tenant operating model that forms the basis of a cluster landing zone allowing multiple teams to securely access, operatate and deploy.
