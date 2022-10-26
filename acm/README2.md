@@ -197,7 +197,7 @@ All of the steps shown so far are intended to be executed by SREs who are respon
 
 Depending on whether you are using Operators or Helm charts to install PostgreSQL the steps may vary and are well-covered by the respective providers. The main considerations for deploying PostgreSQL in a hybrid cloud environment include tuning of timeouts related to network latency and high-performance block storage. Other factors related to a production setup are discussed later. In this setup we will be focusing on connecting PostgreSQL in an active/standby configuration to a hybrid network established by Submariner such that the active primary instance runs on one cluster and the passive standby instance runs on another cluster all controlled by a replication manager and PgPool for client load-balancing and connection pooling.
 
-To complete the integration of PostgreSQL with the "flattened" network that Submariner establishes between clusters requires some additional configuration. The intention is that this configuraiton is saved in YAML files that are then processed by the policy generator tool as a post-installation step as will be shown later.
+To complete the integration of PostgreSQL with the "flattened" network that Submariner establishes between clusters requires some additional configuration. The intention is that this configuration is saved in YAML files that are then processed by the policy generator tool as a post-installation step as will be shown later.
 
 The first thing that is required is to export the headless service of each PostgreSQL statefulset to the other clusters so that the PostgreSQL servers can communicate to each other just like if they were deployed co-resident within a single cluster.
 
