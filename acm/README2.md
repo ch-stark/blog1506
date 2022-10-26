@@ -110,7 +110,7 @@ The resulting set of clusters are as follows.
 
 Note that cluster names are dynamically generated when using ClusterClaims. This should not be an issue provided applications are not exposed using the cluster domain name, i.e., applications should use the [appsDomain feature](https://docs.openshift.com/container-platform/4.11/networking/ingress-operator.html#nw-ingress-configuring-application-domain_configuring-ingress), or deploy a secondary ingress controller to decouple the application plane from the administration plane.
 
-By default each cluster spins up with three worker nodes which will be used for hosting stateless workloads. In the next step we add a machine pool for hosting stateful workloads which typically have their own performance needs. Each machine pool will have only a single worker node since we will be configuring PostgreSQL in an active/standby configuraiton across two clusters in separate cloud providers.
+By default each cluster spins up with three worker nodes which will be used for hosting stateless workloads. In the next step we add a machine pool for hosting stateful workloads which typically have their own performance needs. Each machine pool will have only a single worker node since we will be configuring PostgreSQL in an active/standby configuration across two clusters in separate cloud providers.
 
 	apiVersion: hive.openshift.io/v1
 	kind: MachinePool
@@ -146,7 +146,7 @@ After having applied the generated policies to our clusters their machine config
 	red-cluster-pool-gcp-1-8chvh   red-cluster-pool-gcp-1-8chvh-backend-worker   backend-worker   red-cluster-pool-gcp-1-8chvh   1
 	red-cluster-pool-gcp-1-8chvh   red-cluster-pool-gcp-1-8chvh-worker           worker           red-cluster-pool-gcp-1-8chvh   3
 
-With the physical compute resources in place we next turn our attention to the network. What needs to happen here is basically a "flattening" of the networks between the clusters so that services and pods in one cluster have direct line-of-sight to services and pods in other clusters. This hybrid network connectivity happens at layer-3 of the OSI model and supports TCP and UDP protocols across IPsec tunnels making it a very flexible and high-performance solution. Two gateways are deployed per cluster for high-availability. Please refere to the [documentation](https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.6/html/add-ons/add-ons-overview#preparing-selected-hosts-to-deploy-submariner) for prerequisites and more details on Submariner.
+With the compute resources in place we next turn our attention to the network. What needs to happen here is basically a "flattening" of the networks between the clusters so that services and pods in one cluster have direct line-of-sight to services and pods in other clusters. This hybrid network connectivity happens at layer-3 of the OSI model and supports TCP and UDP protocols across IPsec tunnels making it a very flexible and high-performance solution. Two gateways are deployed per cluster for high-availability. Please refer to the [documentation](https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.6/html/add-ons/add-ons-overview#preparing-selected-hosts-to-deploy-submariner) for prerequisites and more details on Submariner.
 
 To configure Submariner we submit the following YAML as per the example for AWS.
 
@@ -213,7 +213,7 @@ The first thing that is required is to export the headless service of each Postg
 	  name: pg-2-postgresql-ha-postgresql-headless
 	  namespace: database
 
-Next we need to set the environment variables of each PostgreSQL server to use these global service names. This requires that we first define a common list of values that can be shared between clusters as they will need to know each other's identities and settings. This information must be staged on the hub (preferrably using a policy that executes on the hub) so that downstream polices that configure PostgreSQL on a managed cluster can reference this information using the hub template construct as shown below.
+Next we need to set the environment variables of each PostgreSQL server to use these global service names. This requires that we first define a common list of values that can be shared between clusters as they will need to know each other's identities and settings. This information must be staged on the hub (preferably using a policy that executes on the hub) so that downstream polices that configure PostgreSQL on a managed cluster can reference this information using the hub template construct as shown below.
 
 	apiVersion: v1
 	kind: ConfigMap
@@ -228,7 +228,7 @@ Next we need to set the environment variables of each PostgreSQL server to use t
 	  hostname0: 'pg-1-postgresql-ha-postgresql-0.{{- (lookup "hive.openshift.io/v1" "ClusterClaim" "red-cluster-pool" "red-cluster-1").spec.namespace -}}.pg-1-postgresql-ha-postgresql-headless.database.svc.clusterset.local'
 	  hostname1: 'pg-2-postgresql-ha-postgresql-0.{{- (lookup "hive.openshift.io/v1" "ClusterClaim" "red-cluster-pool" "red-cluster-2").spec.namespace -}}.pg-2-postgresql-ha-postgresql-headless.database.svc.clusterset.local'
 
-The next set of YAML references these pre-populated values using the hub template construct and a fromConfigMap function as these policies themselves are meant to be evaluated on the managed clusters. Both the statefulset for PostgreSQL and deployment for PgPool need to be patched. Also note that replicas are now defined because it is only makes sense to do so now and not at installation time (they should be set to zero).
+The next set of YAML references these pre-populated values using the hub template construct and a fromConfigMap function as these policies themselves are meant to be evaluated on the managed clusters. Both the statefulset for PostgreSQL and deployment for PgPool need to be patched. Also note that replicas are now defined because it only makes sense to do so now and not at installation time (they should be set to zero).
 
 	apiVersion: apps/v1
 	kind: StatefulSet
