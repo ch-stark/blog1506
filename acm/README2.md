@@ -467,9 +467,9 @@ If we bring back online the cluster hosting the original primary with the origin
 	- name: REPMGR_PRIMARY_HOST
 	  value: '{{hub fromConfigMap "" "pg-config" (printf "hostname1") hub}}'
 
-Do note that making this change to the policy managing the configuration of the new primary will trigger a restart so again this must all be co-ordinated as part of a pre-flight service restoration checklist to minimise impact. After completing these changes, the next step is to resume the cluster itself which will then patch and start the former primary as a standby server.
+Do note that making this change to the policy managing the configuration of the new primary will trigger a restart so again this must all be co-ordinated as part of a pre-flight service restoration checklist to minimize impact. After completing these changes, the next step is to resume the cluster itself which will then patch and start the former primary as a standby server.
 
-Note that there is no need to update the PgPool deployment as there is no defined primary setting in it's list of configurable parameters.
+Note that there is no need to update the PgPool deployment as there is no defined primary setting in its list of configurable parameters.
 
 Once the cluster starts and the former PostgreSQL primary server is started as a standby it joins the replication cluster as shown in the following output.
 
