@@ -513,6 +513,8 @@ When the cluster which was destroyed due to a catastrophic loss is restored is r
 
 This failover and restore process is also transparent to applications and clients (other than a brief period of interruption during which PgPool has to detect and respond to the failure by redirecting traffic to surviving servers) provided that the applicaiton is de-coupled from the default ingress endpoint names used for cluster administrative functions such as console, oauth and canaries. It is recommended to leverage a static custom domain name that points to a secondary application-only ingress controller that is the target of a global load-balancer.
 
+As a final parting thought, the solution as described could be further enhanced to achieve a RPO of zero where cloud providers hosting cluster workloads are located within the same locality (defined here as network latency of less than 10 milliseconds at the 90% percentile) thus enabling synchronous replication mode between local PostgreSQL servers. To protect against a disaster that affects multiple cloud providers in the same localilty this can be augmented with a multi-region deployment in which asynchronous replication mode to the remote PostgreSQL servers is configured.
+
 ## Conclusion
 
 In this blog we have shown how tools from the RHACM toolbox can be used together to build non-trivial hybrid cloud architectures with higher levels of availability and scaleability. The architecture is underpinned by an extensible multi-tenant operating model that forms the basis of a cluster landing zone allowing multiple teams to securely access, operatate and deploy.
