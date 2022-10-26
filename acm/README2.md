@@ -404,7 +404,7 @@ An example placement for targeting development clusters in AWS labeled for Postg
 	apiVersion: cluster.open-cluster-management.io/v1beta1
 	kind: Placement
 	metadata:
-	  name: placement-red-standalone-clusters-aws
+	  name: placement-red-standalone-clusters-aws-1
 	  namespace: dba-policies
 	spec:
 	  clusterSets:
@@ -418,8 +418,7 @@ An example placement for targeting development clusters in AWS labeled for Postg
                   - {key: env, operator: In, values: ["dev"]}
                   - {key: postgresql, operator: In, values: ["pg-1"]}
 
-
-Note that two of these labels (env and postgresql) were defined in the ClusterClaim. The other two are auto-populated by Hive as part of the provisioning process and ensure we are only deploying to OpenShift clusters and not on the hub itself. Also note that we explictely filter on the red-cluster-set in case the dba-policies namespace is bound to other managed cluster sets in future.
+Here we see that we are using a mix of custom and auto-generated labels to evaluate the clusters in scope for the policy to be applied to. At no point do we refer to the name of the cluster which is dynamically generated. Also note that we filter by cluster set as it is possible that our DBA may be managing clusters from multiple teams with similar labels and this helps the DBA to distinguish between them.
 
 ## Testing
 
@@ -427,7 +426,7 @@ Once our policies have been enabled from the RHACM console, the PostgreSQL state
 
 At this stage the resources deployed to one of the clusters looks as per the following output. 
 
-	$ oc --context red-1 get all,pvc,endpointslices
+	$ oc get all,pvc,endpointslices
 	NAME                                            READY   STATUS    RESTARTS   AGE
 	pod/pg-1-postgresql-ha-pgpool-bf5b69cbb-h6pfl   1/1     Running   0          24m 
 	pod/pg-1-postgresql-ha-postgresql-0             1/1     Running   0          24m 
@@ -461,10 +460,10 @@ The last two endpointslices composed with cluster names identify the IP addresse
 The next step is to test for the catastraphic loss of a cloud provider. This can be simulated using the RHACM hibernate feature to stop a running cluster resulting in the loss of network communication between the primary and standby PostgreSQL servers. After a number of failed re-connection attempts, this triggers the replication manager to promote the standby into a primary role. Before we pull the plug on the cluster let's take a look at how the replication manager and PgPool view system health.
 
 	$ repmgr -f /opt/bitnami/repmgr/conf/repmgr.conf service status
-	 ID | Name                            | Role    | Status    | Upstream                        | repmgrd | PID | Paused? | Upstream last seen
-	----+---------------------------------+---------+-----------+---------------------------------+---------+-----+---------+--------------------
-	 1000 | pg-1-postgresql-ha-postgresql-0 | primary | * running |                                 | running | 1   | no      | n/a                
-	 1001 | pg-2-postgresql-ha-postgresql-0 | standby |   running | pg-1-postgresql-ha-postgresql-0 | running | 1   | no      | 0 second(s) ago    
+	ID   | Name                            | Role    | Status    | Upstream                        | repmgrd | PID | Paused? | Upstream last seen
+	-----+---------------------------------+---------+-----------+---------------------------------+---------+-----+---------+--------------------
+	1000 | pg-1-postgresql-ha-postgresql-0 | primary | * running |                                 | running | 1   | no      | n/a                
+	1001 | pg-2-postgresql-ha-postgresql-0 | standby |   running | pg-1-postgresql-ha-postgresql-0 | running | 1   | no      | 0 second(s) ago    
  
 
 	postgres=# show pool_nodes;
@@ -509,10 +508,10 @@ The results are as expected and we can now login to the RHAC console and hiberna
 After a short while the standby PostgreSQL server is promoted to primary which can be seen in the following output obtained after the standby comes back online as the new primary.
 
 	$ repmgr -f /opt/bitnami/repmgr/conf/repmgr.conf service status
-	 ID | Name                            | Role    | Status    | Upstream | repmgrd | PID | Paused? | Upstream last seen
-	----+---------------------------------+---------+-----------+----------+---------+-----+---------+--------------------
-	 1000 | pg-1-postgresql-ha-postgresql-0 | primary | - failed  | ?        | n/a     | n/a | n/a     | n/a                
-	 1001 | pg-2-postgresql-ha-postgresql-0 | primary | * running |          | running | 1   | no      | n/a                
+	ID   | Name                            | Role    | Status    | Upstream | repmgrd | PID | Paused? | Upstream last seen
+	-----+---------------------------------+---------+-----------+----------+---------+-----+---------+--------------------
+	1000 | pg-1-postgresql-ha-postgresql-0 | primary | - failed  | ?        | n/a     | n/a | n/a     | n/a                
+	1001 | pg-2-postgresql-ha-postgresql-0 | primary | * running |          | running | 1   | no      | n/a                
 	
 	WARNING: following issues were detected
 	  - unable to  connect to node "pg-1-postgresql-ha-postgresql-0" (ID: 1000)
@@ -521,15 +520,13 @@ PgPool is also able to continue servicing clients by sending their queries to th
 
 Assuming our cloud provider doesn't stay offline indefinetely we need to prepare for the eventual restoration of service. If you recall in the configuration above we defined the primary PostgreSQL server for all statefulsets using an environment variables that is passed to the container running the PostgreSQL image. Namely this one:
 
-               - name: REPMGR_PRIMARY_HOST
-                  value: '{{hub fromConfigMap "" "pg-config" (printf "hostname0") hub}}'
+	- name: REPMGR_PRIMARY_HOST
+          value: '{{hub fromConfigMap "" "pg-config" (printf "hostname0") hub}}'
 
 If we bring back online the cluster hosting the original primary with the original configuration it will continue to think that it still is the primary resulting in a split-brain situation. To avoid this we simply edit the policies in our git repo and update them to reflect the new reality in our cluster and let the policy controller propogate these changes when the cluster comes online. For the avoidance of doubt the change to the statefulset required is as follows.
 
-
-               - name: REPMGR_PRIMARY_HOST
-                  value: '{{hub fromConfigMap "" "pg-config" (printf "hostname1") hub}}'
-
+	- name: REPMGR_PRIMARY_HOST
+	  value: '{{hub fromConfigMap "" "pg-config" (printf "hostname1") hub}}'
 
 Do note that making this change to the policy managing the configuration of the new primary will trigger a restart so again this must all be co-ordinated as part of a pre-flight service restoration checklist to minimise impact. After completing these changes, the next step is to resume the cluster itself which will then patch and start the former primary as a standby server.
 
@@ -538,10 +535,10 @@ Note that there is no need to update the PgPool deployment as there is no define
 Once the cluster starts and the former PostgreSQL primary server is started as a standby it joins the replication cluster as shown in the following output.
 
 	$ repmgr -f /opt/bitnami/repmgr/conf/repmgr.conf service status
-	 ID | Name                            | Role    | Status    | Upstream                        | repmgrd | PID | Paused? | Upstream last seen
-	----+---------------------------------+---------+-----------+---------------------------------+---------+-----+---------+--------------------
-	 1000 | pg-1-postgresql-ha-postgresql-0 | standby |   running | pg-2-postgresql-ha-postgresql-0 | running | 1   | no      | 1 second(s) ago    
-	 1001 | pg-2-postgresql-ha-postgresql-0 | primary | * running |                                 | running | 1   | no      | n/a                
+	ID   | Name                            | Role    | Status    | Upstream                        | repmgrd | PID | Paused? | Upstream last seen
+	-----+---------------------------------+---------+-----------+---------------------------------+---------+-----+---------+--------------------
+	1000 | pg-1-postgresql-ha-postgresql-0 | standby |   running | pg-2-postgresql-ha-postgresql-0 | running | 1   | no      | 1 second(s) ago    
+	1001 | pg-2-postgresql-ha-postgresql-0 | primary | * running |                                 | running | 1   | no      | n/a                
 
 The view from PgPool is as follows.
 
