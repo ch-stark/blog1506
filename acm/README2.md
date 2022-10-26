@@ -423,6 +423,45 @@ Note that two of these labels (env and postgresql) were defined in the ClusterCl
 
 ## Testing
 
+Once our policies have been enabled from the RHACM console the PostgreSQL statefulset and PgPool deployment will be patched with settings contained in the ConfigMap that are pulled from the hub. In our setup we have limited the number of pod replicas to one for PgPool for simplification. In a production setup the number of PgPool pod replicas should match the scaling needs of the application and uptime SLA.
+
+At this stage the deployed resources for one of the clusters looks as per the following output. 
+
+	$ oc --context red-1 get all,pvc,endpointslices
+	NAME                                            READY   STATUS    RESTARTS   AGE
+	pod/pg-1-postgresql-ha-pgpool-bf5b69cbb-h6pfl   1/1     Running   0          24m 
+	pod/pg-1-postgresql-ha-postgresql-0             1/1     Running   0          24m 
+	
+	NAME                                             TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
+	service/pg-1-postgresql-ha-pgpool                ClusterIP   172.30.81.120   <none>        5432/TCP   24m
+	service/pg-1-postgresql-ha-postgresql            ClusterIP   172.30.48.22    <none>        5432/TCP   24m
+	service/pg-1-postgresql-ha-postgresql-headless   ClusterIP   None            <none>        5432/TCP   24m
+	
+	NAME                                        READY   UP-TO-DATE   AVAILABLE   AGE
+	deployment.apps/pg-1-postgresql-ha-pgpool   1/1     1            1           24m
+	
+	NAME                                                   DESIRED   CURRENT   READY   AGE
+	replicaset.apps/pg-1-postgresql-ha-pgpool-bf5b69cbb    1         1         1       24m 
+	
+	NAME                                             READY   AGE
+	statefulset.apps/pg-1-postgresql-ha-postgresql   1/1     24m
+	
+	NAME                                                         STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+	persistentvolumeclaim/data-pg-1-postgresql-ha-postgresql-0   Bound    pvc-66b68308-5e44-49a1-94e8-655fa0c8475d   8Gi        RWO            gp3-csi        24m 
+	
+	NAME                                                                                                 ADDRESSTYPE   PORTS   ENDPOINTS     AGE
+	endpointslice.discovery.k8s.io/pg-1-postgresql-ha-pgpool-75wjr                                       IPv4          5432    10.128.2.28   24m
+	endpointslice.discovery.k8s.io/pg-1-postgresql-ha-postgresql-d2rhs                                   IPv4          5432    10.130.2.6    24m
+	endpointslice.discovery.k8s.io/pg-1-postgresql-ha-postgresql-headless-4fbxh                          IPv4          5432    10.130.2.6    24m
+	endpointslice.discovery.k8s.io/pg-1-postgresql-ha-postgresql-headless-red-cluster-pool-aws-1-4thqz   IPv4          5432    10.130.2.6    24m
+	endpointslice.discovery.k8s.io/pg-2-postgresql-ha-postgresql-headless-red-cluster-pool-gcp-1-8chvh   IPv4          5432    10.134.2.6    24m
+
+The last two endpointslices composed with cluster names identify the pod IP addresses for both the local and remote PostgreSQL server and were created by Submariner.
+
+
+
+
+
 Now that everything has been setup we can similuate the catastrophic loss of a cloud provider by using the hibernate capability in RHACM to stop the cluster running the primary PostgreSQL server without first notifying the standby. Before we start let's review the runtime environment. From an OpenShift/Kubernetes perspective we first check the status of all relevant resources to ensure everything is running and that all global endpoints have their IP addresses defined.
 
 $ oc --context red-1 get pods,endpointslices
