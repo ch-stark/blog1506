@@ -525,4 +525,4 @@ Some parting thoughts:
 
 ## Conclusion
 
-In this blog we have shown how tools from the RHACM toolbox can be used together to build non-trivial open hybrid cloud architectures with higher levels of availability and scaleability than what is possible with a multi-cloud architecture. This in turn is underpinned by an extensible multi-tenant operating model that forms the basis of a cluster landing zone allowing multiple teams to securely access, operatate and deploy resources across clouds in a frictionless manner.
+In this blog we have shown how tools from the RHACM toolbox can be used together to build non-trivial open hybrid cloud architectures with higher levels of availability and scalability than what is possible with a multi-cloud architecture. This in turn is underpinned by an extensible multi-tenant operating model that forms the basis of a cluster landing zone allowing multiple teams to securely access, operate and deploy resources across clouds in a frictionless manner.
