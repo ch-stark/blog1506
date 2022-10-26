@@ -100,18 +100,17 @@ To spawn a cluster we need to submit a ClusterClaim (which is similar in concept
         spec:
           clusterPoolName: red-cluster-pool-gcp-1
 
-After some time the resulting set of clusters spawned are as follows.
+The resulting set of clusters are as follows.
 
-	$ oc get managedclusters
-	NAME                             HUB ACCEPTED   MANAGED CLUSTER URLS                                                JOINED   AVAILABLE   AGE
-	local-cluster                    true           https://api.hub-cluster-1.aws.example.com:6443                      True     True        80m
-	red-cluster-pool-aws-1-lt87l     true           https://api.red-cluster-pool-aws-1-lt87l.aws.example.com:6443       True     True        32m
-	red-cluster-pool-azure-1-g76vj   true           https://api.red-cluster-pool-azure-1-g76vj.azure.example.com:6443   True     True        33m
-	red-cluster-pool-gcp-1-x5mmj     true           https://api.red-cluster-pool-gcp-1-x5mmj.gcp.example.com:6443       True     True        33m
+	$ oc get managedclusters -A
+	NAME                           HUB ACCEPTED   MANAGED CLUSTER URLS                                           JOINED   AVAILABLE   AGE
+	local-cluster                  true           https://api.hub-cluster-1.aws.jwilms.net:6443                  True     True        5h38m
+	red-cluster-pool-aws-1-4thqz   true           https://api.red-cluster-pool-aws-1-4thqz.aws.jwilms.net:6443   True     True        4h37m
+	red-cluster-pool-gcp-1-8chvh   true           https://api.red-cluster-pool-gcp-1-8chvh.gcp.jwilms.net:6443   True     True        4h45m
 
-Note that cluster names are dynamically generated in line with the "cattle not pets" paradigm adopted by Kubernetes. This is beneficial because it allows for rapid cluster rebuilds provided we have decoupled our application endpoints from the cluster administration endpoint and are using a restore-from-code approach.
+Note that cluster names are dynamically generated when using ClusterClaims. This should not be an issue provided applications are not exposed using the cluster domain name, i.e., applications should use the [appsDomain feature](https://docs.openshift.com/container-platform/4.11/networking/ingress-operator.html#nw-ingress-configuring-application-domain_configuring-ingress), or deploy a secondary ingress controller to fully decouple the application plane from the administration plane.
 
-At this stage we have a general purpose application cluster with three control plane nodes and three worker nodes. In the next step we begin to customize the cluster to support both stateless and stateful workloads. To this end we configure an additional MachinePool for each cluster with a node in each availability zone. The following Policy template example is for AWS.
+By default each cluster spins up with three worker nodes which will be used for hosting stateless workloads. In the next step we add a machine pool for hosting stateful workloads which typically have their own performance needs. Each machine pool will have only a single worker node since we will be configuring PostgreSQL in an active/standby configuraiton across two clusters in separate cloud providers.
 
 	apiVersion: hive.openshift.io/v1
 	kind: MachinePool
@@ -134,7 +133,7 @@ At this stage we have a general purpose application cluster with three control p
 	        size: 120 
 	        type: gp3
 	      type: m6i.xlarge
-	  replicas: 3
+	  replicas: 1
 	
 Note that we use the known static cluster claim name in order to derive the dynamically generated cluster name. This piece of YAML cannot be submitted directly to the API Server as it is using Go templating and  needs to first be processed by the Policy Generator tool into a valid Policy document that in turn can be applied to the system via the Policy controller. For more details on this tool please refer to [here](https://cloud.redhat.com/blog/generating-governance-policies-using-kustomize-and-gitops).
 
