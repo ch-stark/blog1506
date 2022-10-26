@@ -297,46 +297,9 @@ The next set of YAML references these pre-populated values using the hub templat
 	        image: # set this to you pgpool container image
 	        name: pgpool
 
-After running the above through the Policy Generator tool a PostgreSQL server and PgPool instance will be started on each cluster. Review the logs of the primary PostgreSQL server (pg-1) to ensure this worked correctly and that the replication manager has started and is accepting connections from the standby servers.
+Repeat for the standby PostgreSQL server represented by the prefix pg-2 adjusting environment variables accordingly.
 
-	LOG:  starting PostgreSQL 14.5 on x86_64-pc-linux-gnu, compiled by gcc (Debian 10.2.1-6) 10.2.1 20210110, 64-bit
-	LOG:  listening on IPv4 address "0.0.0.0", port 5432
-	LOG:  listening on IPv6 address "::", port 5432
-	LOG:  listening on Unix socket "/tmp/.s.PGSQL.5432"
-	LOG:  database system was shut down at 2022-10-23 01:53:52 GMT
-	LOG:  database system is ready to accept connections
-	 done
-	server started
-	postgresql-repmgr 01:54:42.46 INFO  ==> ** Starting repmgrd **
-	[NOTICE] repmgrd (repmgrd 5.3.2) starting up
-	INFO:  set_repmgrd_pid(): provided pidfile is /tmp/repmgrd.pid
-	[NOTICE] starting monitoring of node "pg-1-postgresql-ha-postgresql-0" (ID: 1000)
-	[NOTICE] monitoring cluster primary "pg-1-postgresql-ha-postgresql-0" (ID: 1000)
-	[NOTICE] new standby "pg-2-postgresql-ha-postgresql-0" (ID: 1001) has connected
-	[NOTICE] new standby "pg-3-postgresql-ha-postgresql-0" (ID: 1002) has connected
-
-Connect to PgPool and verify the status of all PostgreSQL servers.
-
-	postgres=# show pool_nodes;
-	node_id |                                                             hostname                                                              | port | status | pg_status | lb_weight |  role   | pg_role | select_cnt | load_balance_node | replication_delay | replication_state | replication_sync_state | last_status_change  
-	--------+-----------------------------------------------------------------------------------------------------------------------------------+------+--------+-----------+-----------+---------+---------+------------+-------------------+-------------------+-------------------+------------------------+---------------------
-	0       | pg-1-postgresql-ha-postgresql-0.red-cluster-pool-aws-1-lt87l.pg-1-postgresql-ha-postgresql-headless.database.svc.clusterset.local | 5432 | up     | up        | 0.333333  | primary | primary | 7       | false             | 0                 |                   |                        | 2022-10-23 02:17:57
-	1       | pg-2-postgresql-ha-postgresql-0.red-cluster-pool-azure-1-g76vj.pg-2-postgresql-ha-postgresql-headless.database.svc.clusterset.local | 5432 | up     | up        | 0.333333  | standby | standby | 15      | false             | 0                 |                   |                        | 2022-10-23 02:17:57
-	2       | pg-3-postgresql-ha-postgresql-0.red-cluster-pool-gcp-1-x5mmj.pg-3-postgresql-ha-postgresql-headless.database.svc.clusterset.local | 5432 | up     | up        | 0.333333  | standby | standby | 10      | true              | 0                 |                   |                        | 2022-10-23 02:17:57
-	(3 rows)
-
-It is also worth reviewing the service endpointslices created by Submariner on each cluster as ultimately these are critical for sucessful communication between all of the components. Here is an example:
-
-	$ oc get endpointslices
-	NAME                                                                    ADDRESSTYPE   PORTS     ENDPOINTS    AGE
-	pg-1-postgresql-ha-pgpool-545ps                                         IPv4          5432      10.131.0.31  93m
-	pg-1-postgresql-ha-postgresql-headless-red-cluster-pool-aws-1-lt87l     IPv4          5432      10.131.2.9   93m
-	pg-1-postgresql-ha-postgresql-headless-zwrqj                            IPv4          5432      10.131.2.9   93m
-	pg-1-postgresql-ha-postgresql-ktczz                                     IPv4          5432      10.131.2.9   93m
-	pg-2-postgresql-ha-postgresql-headless-red-cluster-pool-azure-1-g76vj   IPv4          5432      10.139.2.6   93m
-	pg-3-postgresql-ha-postgresql-headless-red-cluster-pool-gcp-1-x5mmj     IPv4          5432      10.135.2.5   93m
-
-Here is the contents of the policy generator configuration for ingesting the YAML files defined above which themselves are stored inside various subdirectories. Note that the policies are all loaded with disabled set to true as the intention is to enable them from the RHACM console once the DBA is satisfied with the state of the clusters and has installed a baseline PostgreSQL environment.
+Here is the contents of the policy generator configuration for ingesting these YAML files which themselves are stored inside various subdirectories. Note that the policies are all loaded with the disabled flag set to true as the intention is to enable them from within the RHACM console once the DBA is satisfied with the state of the clusters and has completed installing a baseline PostgreSQL environment on each.
 
 	apiVersion: policy.open-cluster-management.io/v1
 	kind: PolicyGenerator
@@ -401,7 +364,7 @@ The policy generator leverages placements to map policies to clusters. An exampl
                   - {key: env, operator: In, values: ["dev"]}
                   - {key: postgresql, operator: In, values: ["pg-1"]}
 
-Here we see that we are using a mix of custom and auto-generated labels to evaluate the clusters in scope for the policy to be applied to. At no point do we refer to the name of the cluster which is dynamically generated. Also note that we filter by cluster set as it is possible that our DBA may be managing clusters from multiple teams with similar labels and this helps the DBA to distinguish between them.
+We are using a mix of custom and auto-generated labels to evaluate the clusters in scope for having the policy applied to it. At no point do we ever refer to the name of the cluster which is dynamically generated and will change if the cluster were to be re-created. Also note that we include a filter for clusterSets as it is possible that our DBA may be managing clusters across multiple teams using similar labels and thus this filter helps to ensure the policies target only clusters belonging to the red team.
 
 ## Testing
 
