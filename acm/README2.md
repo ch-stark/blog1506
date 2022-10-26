@@ -506,6 +506,35 @@ The results are as expected and we can now login to the RHAC console and hiberna
   <em>Diagram 2. Hibernating a cluster to simulate catastrophic cloud provider loss</em>
 </p>
 
+After a short while the standby PostgreSQL server is promoted to primary which can be seen in the following output obtained after the standby comes back online as the new primary.
+
+	$ repmgr -f /opt/bitnami/repmgr/conf/repmgr.conf service status
+	 ID | Name                            | Role    | Status    | Upstream | repmgrd | PID | Paused? | Upstream last seen
+	----+---------------------------------+---------+-----------+----------+---------+-----+---------+--------------------
+	 1000 | pg-1-postgresql-ha-postgresql-0 | primary | - failed  | ?        | n/a     | n/a | n/a     | n/a                
+	 1001 | pg-2-postgresql-ha-postgresql-0 | primary | * running |          | running | 1   | no      | n/a                
+	
+	WARNING: following issues were detected
+	  - unable to  connect to node "pg-1-postgresql-ha-postgresql-0" (ID: 1000)
+
+PgPool is also able to continue servicing clients by sending their queries to the new primary.
+
+Assuming our cloud provider doesn't stay offline indefinetely we need to prepare for the eventual restoration of service. If you recall in the configuration above we defined the primary PostgreSQL server for all statefulsets using an environment variables that is passed to the container running the PostgreSQL image. Namely this one:
+
+               - name: REPMGR_PRIMARY_HOST
+                  value: '{{hub fromConfigMap "" "pg-config" (printf "hostname0") hub}}'
+
+If we bring back online the cluster hosting the original primary with the original configuration it will continue to think that it still is the primary resulting in a split-brain situation. To avoid this we simply edit the policies in our git repo and update them to reflect the new reality in our cluster and let the policy controller propogate these changes when the cluster comes online. For the avoidance of doubt the change to the statefulset required is as follows.
+
+
+               - name: REPMGR_PRIMARY_HOST
+                  value: '{{hub fromConfigMap "" "pg-config" (printf "hostname1") hub}}'
+
+
+Do note that making this change to the policy managing the configuration of the new primary will trigger a restart so again this must all be co-ordinated as part of a pre-flight service restoration checklist to minimise impact. After completing these changes, the next step is to resume the cluster itself which will then patch and start the former primary as a standby server.
+
+Note that there is no need to update the PgPool deployment as there is no defined primary setting in it's list of configurable parameters.
+
 
 
 
