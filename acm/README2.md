@@ -29,7 +29,7 @@ We start of by defining an empty ManagedClusterSet that serves as a logical grou
 	  name: red-cluster-set
 	spec: {}
 
-Next we create and bind the dba-policies namespaces to the red-cluster-set so that policies written to this namespace can be deployed to the clusters referenced by a managed cluster set. We also need to bind the dba-policies namespace to the hub cluster as there are policies required to generate shared configuration information that is required by all PostgreSQL servers as explained later.
+We create a namespace (dba-policies) and bind this to the managed cluster set so that any policies written to here can be executed against the clusters in the managed cluster set (the policy controller checks for this binding). Because we also need to generate some common configuration information that needs to be shared across all of the clusters hosting PostgreSQL servers this needs to be stored on the hub cluster itself as a ConfigMap and thus we also need to be bind the dba-policies namespace to the hub.
 
 	apiVersion: cluster.open-cluster-management.io/v1beta1
 	kind: ManagedClusterSetBinding
@@ -47,7 +47,7 @@ Next we create and bind the dba-policies namespaces to the red-cluster-set so th
 	spec:
 	  clusterSet: default
 
-ClusterPools encapsulate the underlying cloud provider infrastructure and cluster configuration and assign any clusters spawned to the red-cluster-set. An example is shown for AWS.
+ClusterPools encapsulate details of the underlying cloud provider infrastructure and assign any clusters spawned from it to a managed cluster set. For brevity, detailed specification of referenced resources are not shown and the example shown is for AWS. A corresponding ClusterPool for GCP needs to be defined with a non-overlapping network address space which is a Submariner pre-requisite.
 
 	apiVersion: hive.openshift.io/v1
 	kind: ClusterPool
@@ -63,7 +63,7 @@ ClusterPools encapsulate the underlying cloud provider infrastructure and cluste
 	  size: 0
 	  runningCount: 0
 	  skipMachinePools: false
-	  baseDomain: aws.example.com
+	  baseDomain: # your domain name
 	  installConfigSecretTemplateRef:
 	    name: red-cluster-pool-aws-install-config-1
 	  imageSetRef:
@@ -76,7 +76,7 @@ ClusterPools encapsulate the underlying cloud provider infrastructure and cluste
 	        name: red-cluster-pool-aws-creds
 	      region: ap-southeast-1
 
-To spawn a cluster we need to submit a ClusterClaim (this is similar in concept to how a PersistentVolumeClaim results in the creation of a PersistentVolume). The following cluster claims were submitted and reference ClusterPools mapped to cloud providers and specific regions. Convenience labels (e.g., env=dev, postgresql=pg-X) are defined for placing workloads on the correct clutser by the Policy Generator tool. 
+To spawn a cluster we need to submit a ClusterClaim (which is similar in concept to how a PersistentVolumeClaim results in the creation of a PersistentVolume). The following cluster claims must be submitted and contain custom labels that later on will help with mapping policies to managed clusters.
 
         apiVersion: hive.openshift.io/v1
         kind: ClusterClaim
@@ -97,17 +97,6 @@ To spawn a cluster we need to submit a ClusterClaim (this is similar in concept 
           labels:
 	    env: dev
 	    postgresql: pg-2
-        spec:
-          clusterPoolName: red-cluster-pool-azure-1
-        ---
-        apiVersion: hive.openshift.io/v1
-        kind: ClusterClaim
-        metadata:
-          name: red-cluster-3
-          namespace: red-cluster-pool
-          labels:
-	    env: dev
-	    postgresql: pg-3
         spec:
           clusterPoolName: red-cluster-pool-gcp-1
 
