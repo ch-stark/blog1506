@@ -200,9 +200,13 @@ Assuming that the preprequisites as documented [here](https://access.redhat.com/
 
 ## Deploying PostgreSQL
 
-So far all of the steps shown are intended to be performed by the SREs who are responsible for cluster fleet capacity and networking. The next set of steps are intended to be performed by the DBAs using Policy templates that are deployed via OpenShift GitOps into the dba-policies namespace from where they are picked up by the Policy controller and executed on the clusters bound by the managed cluster set. DBAs will only need RBAC permissions for Policies (API group policy.open-cluster-management.io) and Placements (API group cluster.open-cluster-management.io) to perform their role.
+All of the steps shown so far are intended to be executed by SREs who are responsible for the cluster fleet including capacity and networking. The next set of steps are intended to be executed by our DBAs using RHACM policies which will be mapped into the dba-policies namespace via the hub cluster OpenShift GitOps instance. From here they will be picked up by the policy controller and applied to the clusters based on placement resources defined later.
 
-Depending on whether you are using Operators or Helm charts to install PostgreSQL the steps may vary and are covered in great detail in many other public sources. Considerations for deploying PostgreSQL in a hybrid cloud architecture include tuning of timeouts and high-performance block storage. There is also some post-installation configuration that needs to take place to integrate PostgreSQL with the hybrid cloud network that Submariner has established for us and then testing the failover mechanism in the event of catastrophic loss. As PostgreSQL is deployed using StatefulSets and exposed using a headless service, the underlying endpoints (in this case identified by the prefix of a single PostgreSQL server pod per cluster) needs to be made discoverable across all of the clusters participating in the hybrid cloud network. The following YAML (which can be processed by the Policy Generator shown later) will instruct Submariner to create a globally addressable service endpoint on the clusterset.local domain. See the Submariner [documentation](https://submariner.io/) for more details.
+Depending on whether you are using Operators or Helm charts to install PostgreSQL the steps may vary and are well-covered by the respective providers. The main considerations for deploying PostgreSQL in a hybrid cloud environment include tuning of timeouts related to network latency and high-performance block storage. Other factors related to a production setup are discussed later. In this setup we will be focusing on connecting PostgreSQL in an active/standby configuration to a hybrid network established by Submariner such that the active primary instance runs on one cluster and the passive standby instance runs on another cluster all controlled by a replication manager and PgPool for client load-balancing and connection pooling.
+
+To complete the integration of PostgreSQL with the "flattened" network that Submariner establishes between clusters requires some additional configuration. The intention is that this configuraiton is saved in YAML files that are then processed by the policy generator tool as a post-installation step as will be shown later.
+
+The first thing that is required is to export the headless service of each PostgreSQL statefulset to the other clusters so that the PostgreSQL servers can communicate to each other just like if they were deployed co-resident within a single cluster.
 
 	apiVersion: multicluster.x-k8s.io/v1alpha1
 	kind: ServiceExport
@@ -215,14 +219,8 @@ Depending on whether you are using Operators or Helm charts to install PostgreSQ
 	metadata:
 	  name: pg-2-postgresql-ha-postgresql-headless
 	  namespace: database
-	---
-	apiVersion: multicluster.x-k8s.io/v1alpha1
-	kind: ServiceExport
-	metadata:
-	  name: pg-3-postgresql-ha-postgresql-headless
-	  namespace: database
 
-Now that the global service names have been defined we need to configure each PostgreSQL server and PgPool instance to communicate with each other using these names. The first step to doing this is to define a common set of configuration properties on the hub so that these can be distributed to each of the managed clusters as a second step. Again the following YAML is intended to be processed by the Policy Generator.
+Next we need to set the environment variables of each PostgreSQL server to use these global service names. This requires that we first define a common list of values that can be shared between clusters as they will need to know each other's identities and settings. This information must be staged on the hub (preferrably using a policy that executes on the hub) so that downstream polices that configure PostgreSQL on a managed cluster can reference this information using the hub template construct as shown below.
 
 	apiVersion: v1
 	kind: ConfigMap
@@ -232,15 +230,12 @@ Now that the global service names have been defined we need to configure each Po
 	data:
 	  nodeid0: '1000'
 	  nodeid1: '1001'
-	  nodeid2: '1002'
 	  nodename0: 'pg-1-postgresql-ha-postgresql-0'
 	  nodename1: 'pg-2-postgresql-ha-postgresql-0'
-	  nodename2: 'pg-3-postgresql-ha-postgresql-0'
 	  hostname0: 'pg-1-postgresql-ha-postgresql-0.{{- (lookup "hive.openshift.io/v1" "ClusterClaim" "red-cluster-pool" "red-cluster-1").spec.namespace -}}.pg-1-postgresql-ha-postgresql-headless.database.svc.clusterset.local'
 	  hostname1: 'pg-2-postgresql-ha-postgresql-0.{{- (lookup "hive.openshift.io/v1" "ClusterClaim" "red-cluster-pool" "red-cluster-2").spec.namespace -}}.pg-2-postgresql-ha-postgresql-headless.database.svc.clusterset.local'
-	  hostname2: 'pg-3-postgresql-ha-postgresql-0.{{- (lookup "hive.openshift.io/v1" "ClusterClaim" "red-cluster-pool" "red-cluster-3").spec.namespace -}}.pg-3-postgresql-ha-postgresql-headless.database.svc.clusterset.local'
 
-The next step is to configure the PostgreSQL server and PgPool instance on each cluster to use these hostnames and ids for communication and data replication. The following YAML accomplishes this by patching the configuration of the installed PostgreSQL statefulset and PgPool deployment with values extracted from the configmap resource. An example is shown for the PostgreSQL server and PgPool on AWS identified by the prefix pg-1 as per the diagram above.
+The next set of YAML references these pre-populated values using the hub template construct and a fromConfigMap function as these policies themselves are meant to be evaluated on the managed clusters. Both the statefulset for PostgreSQL and deployment for PgPool need to be patched. Also note that replicas are now defined because it is only makes sense to do so now and not at installation time (they should be set to zero).
 
 	apiVersion: apps/v1
 	kind: StatefulSet
@@ -266,15 +261,15 @@ The next step is to configure the PostgreSQL server and PgPool instance on each 
 	        - name: REPMGR_NODE_NAME
 	          value: '{{hub fromConfigMap "" "pg-config" (printf "nodename0") hub}}'
 	        - name: REPMGR_PARTNER_NODES
-	          value: '{{hub fromConfigMap "" "pg-config" (printf "hostname0") hub}},{{hub fromConfigMap "" "pg-config" (printf "hostname1") hub}},{{hub fromConfigMap "" "pg-config" (printf "hostname2") hub}}'
+	          value: '{{hub fromConfigMap "" "pg-config" (printf "hostname0") hub}},{{hub fromConfigMap "" "pg-config" (printf "hostname1") hub}}'
 	        - name: REPMGR_PRIMARY_HOST
 	          value: '{{hub fromConfigMap "" "pg-config" (printf "hostname0") hub}}'
 	        - name: REPMGR_NODE_NETWORK_NAME
 	          value: '{{hub fromConfigMap "" "pg-config" (printf "hostname0") hub}}'
-	        image: # postgresql container image
+	        image: # set this to your postgresql container image
 	        name: postgresql
 	      initContainers:
-	      - image: # postgresql container image
+	      - image: # set this to your postgresql container image
 	        name: init-chmod-data
 	---
 	apiVersion: apps/v1
@@ -298,8 +293,8 @@ The next step is to configure the PostgreSQL server and PgPool instance on each 
 	      containers:
 	      - env:
 	        - name: PGPOOL_BACKEND_NODES
-                  value: '0:{{hub fromConfigMap "" "pg-config" (printf "hostname0") hub}}:5432,1:{{hub fromConfigMap "" "pg-config" (printf "hostname1") hub}}:5432,2:{{hub fromConfigMap "" "pg-config" (printf "hostname2") hub}}:5432'
-	        image: # pgpool container image
+                  value: '0:{{hub fromConfigMap "" "pg-config" (printf "hostname0") hub}}:5432,1:{{hub fromConfigMap "" "pg-config" (printf "hostname1") hub}}:5432'
+	        image: # set this to you pgpool container image
 	        name: pgpool
 
 After running the above through the Policy Generator tool a PostgreSQL server and PgPool instance will be started on each cluster. Review the logs of the primary PostgreSQL server (pg-1) to ensure this worked correctly and that the replication manager has started and is accepting connections from the standby servers.
@@ -341,7 +336,7 @@ It is also worth reviewing the service endpointslices created by Submariner on e
 	pg-2-postgresql-ha-postgresql-headless-red-cluster-pool-azure-1-g76vj   IPv4          5432      10.139.2.6   93m
 	pg-3-postgresql-ha-postgresql-headless-red-cluster-pool-gcp-1-x5mmj     IPv4          5432      10.135.2.5   93m
 
-And here is what the the Policy Generation configuration wrapper looks like that was used by the DBA (the configuraiton of the Policy Generation to build the cluster by the SRE team is out of scope for this installment).
+Here is the contents of the policy generator configuration for ingesting the YAML files defined above which themselves are stored inside various subdirectories. Note that the policies are all loaded with disabled set to true as the intention is to enable them from the RHACM console once the DBA is satisfied with the state of the clusters and has installed a baseline PostgreSQL environment.
 
 	apiVersion: policy.open-cluster-management.io/v1
 	kind: PolicyGenerator
@@ -350,56 +345,44 @@ And here is what the the Policy Generation configuration wrapper looks like that
 	placementBindingDefaults:
 	  name: binding-policy-postgresql-provisioning
 	policyDefaults:
-	  standards:
-	    - NIST SP 800-53
-	  categories:
-	    - CM Configuration Management
-	  controls: 
-	    - CM-2 Baseline Configuration
 	  namespace: dba-policies
 	  complianceType: musthave
 	  remediationAction: enforce
 	  severity: low
 	policies:
-	- name: policy-generate-postgresql-config
+	- name: policy-generate-postgresql-config-hub
 	  manifests:
 	    - path: input-hub-clusters/postgresql/
+	  disabled: true
 	  policySets:
-	    - policyset-hub-clusters
-	- name: policy-patch-postgresql-red-clusters-aws
+	    - policyset-postgresql-hub-clusters
+	- name: policy-patch-postgresql-red-clusters-aws-1
 	  manifests:
-	    - path: input-standalone-clusters/red/aws/postgresql/
+	    - path: input-standalone-clusters/red/aws-1/postgresql/
 	  policySets:
-	     - policyset-red-standalone-clusters-aws
-	- name: policy-patch-postgresql-red-clusters-azure
+	     - policyset-postgresql-red-standalone-clusters-aws-1
+	  disabled: true
+	- name: policy-patch-postgresql-red-clusters-gcp-1
 	  manifests:
-	    - path: input-standalone-clusters/red/azure/postgresql/
+	    - path: input-standalone-clusters/red/gcp-1/postgresql/
 	  policySets:
-	     - policyset-red-standalone-clusters-gcp
-	- name: policy-patch-postgresql-red-clusters-gcp
-	  manifests:
-	    - path: input-standalone-clusters/red/gcp/postgresql/
-	  policySets:
-	     - policyset-red-standalone-clusters-gcp
+	     - policyset-postgresql-red-standalone-clusters-gcp-1
+	  disabled: true
 	policySets:
 	  - description: This policy set is focused on PostgreSQL components for the ACM hub.
-	    name: policyset-hub-clusters
+	    name: policyset-postgresql-hub-clusters
 	    placement:
 	      placementPath: input/placement-hub-clusters.yaml
 	  - description: This policy set is focused on PostgreSQL components for managed OpenShift clusters on AWS.
-	    name: policyset-red-standalone-clusters-aws
+	    name: policyset-postgresql-red-standalone-clusters-aws-1
 	    placement:
-	      placementPath: input/placement-red-standalone-clusters-aws.yaml
-	  - description: This policy set is focused on PostgreSQL components for managed OpenShift clusters on Azure.
-	    name: policyset-red-standalone-clusters-azure
-	    placement:
-	      placementPath: input/placement-red-standalone-clusters-azure.yaml
+	      placementPath: input/placement-red-standalone-clusters-aws-1.yaml
 	  - description: This policy set is focused on PostgreSQL components for managed OpenShift clusters on GCP.
-	    name: policyset-red-standalone-clusters-gcp
+	    name: policyset-postgresql-red-standalone-clusters-gcp-1
 	    placement:
-	      placementPath: input/placement-red-standalone-clusters-gcp.yaml
+	      placementPath: input/placement-red-standalone-clusters-gcp-1.yaml
 
-An example placement for targeting development clusters in AWS labeled for PostgreSQL deployment is as follows:
+The policy generator leverages placements to map policies to clusters. An example placement resource is as follows.
 
 	apiVersion: cluster.open-cluster-management.io/v1beta1
 	kind: Placement
