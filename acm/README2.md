@@ -185,6 +185,12 @@ To configure Submariner we submit the following YAML as per the example for AWS.
 
 Check the status of Submariner network connectivity from the RHACM console before continuing.
 
+
+<p align="center">
+  <img src="https://github.com/jwilms1971/blog/blob/main/acm/Screenshot from 2022-10-26 12-54-17.png">
+  <em>Diagram 2. Submariner setup for two clusters spanning two cloud providers</em>
+</p>
+
 ## Deploying PostgreSQL
 
 All of the steps shown so far are intended to be executed by SREs who are responsible for the cluster fleet including capacity and networking. The next set of steps are intended to be executed by our DBAs using RHACM policies which will be mapped into the dba-policies namespace via the hub cluster OpenShift GitOps instance. From here they will be picked up by the policy controller and applied to the clusters based on placement resources defined later.
@@ -435,7 +441,7 @@ The results are as expected and we can now login to the RHAC console and hiberna
 
 <p align="center">
   <img src="https://github.com/jwilms1971/blog/blob/main/acm/Screenshot from 2022-10-26 09-37-46.png">
-  <em>Diagram 2. Hibernating a cluster to simulate catastrophic cloud provider loss</em>
+  <em>Diagram 3. Hibernating a cluster to simulate the catastrophic loss of a cloud provider</em>
 </p>
 
 After a short while the standby PostgreSQL server is promoted to primary which can be seen in the following output obtained after the standby comes back online as the new primary.
