@@ -135,22 +135,21 @@ By default each cluster spins up with three worker nodes which will be used for 
 	      type: m6i.xlarge
 	  replicas: 1
 	
-Note that we use the known static cluster claim name in order to derive the dynamically generated cluster name. This piece of YAML cannot be submitted directly to the API Server as it is using Go templating and  needs to first be processed by the Policy Generator tool into a valid Policy document that in turn can be applied to the system via the Policy controller. For more details on this tool please refer to [here](https://cloud.redhat.com/blog/generating-governance-policies-using-kustomize-and-gitops).
+This YAML file uses policy templating constructs to map a known quantity (the name of the cluster claim) to an unknown quantity (the name of the cluster). See the following [blog](https://cloud.redhat.com/blog/applying-policy-based-governance-at-scale-using-templates) for more details as well this [blog](https://cloud.redhat.com/blog/generating-governance-policies-using-kustomize-and-gitops) which introduces the Policy Generator tool which processes YAML files and turns them into policies.
 
-The outcome of applying this Policy is that each cluster now has two machine pools: one for running application workloads (default workers) and one for database workloads (backend workers) with the underlying machines distributed equally across all availability zones by default.
+After having applied the generated policies to our clusters their machine configuration as seen from the hub is as follows.
 
 	$ oc get machinepools -A
-	NAMESPACE                        NAME                                            POOLNAME         CLUSTERDEPLOYMENT                REPLICAS
-	red-cluster-pool-aws-1-lt87l     red-cluster-pool-aws-1-lt87l-backend-worker     backend-worker   red-cluster-pool-aws-1-lt87l     3
-	red-cluster-pool-aws-1-lt87l     red-cluster-pool-aws-1-lt87l-worker             worker           red-cluster-pool-aws-1-lt87l     3
-	red-cluster-pool-azure-1-g76vj   red-cluster-pool-azure-1-g76vj-backend-worker   backend-worker   red-cluster-pool-azure-1-g76vj   3
-	red-cluster-pool-azure-1-g76vj   red-cluster-pool-azure-1-g76vj-worker           worker           red-cluster-pool-azure-1-g76vj   3
-	red-cluster-pool-gcp-1-x5mmj     red-cluster-pool-gcp-1-x5mmj-backend-worker     backend-worker   red-cluster-pool-gcp-1-x5mmj     3
-	red-cluster-pool-gcp-1-x5mmj     red-cluster-pool-gcp-1-x5mmj-worker             worker           red-cluster-pool-gcp-1-x5mmj     3
+	NAMESPACE                      NAME                                          POOLNAME         CLUSTERDEPLOYMENT              REPLICAS
+	red-cluster-pool-aws-1-4thqz   red-cluster-pool-aws-1-4thqz-backend-worker   backend-worker   red-cluster-pool-aws-1-4thqz   1
+	red-cluster-pool-aws-1-4thqz   red-cluster-pool-aws-1-4thqz-worker           worker           red-cluster-pool-aws-1-4thqz   3
+	red-cluster-pool-gcp-1-8chvh   red-cluster-pool-gcp-1-8chvh-backend-worker   backend-worker   red-cluster-pool-gcp-1-8chvh   1
+	red-cluster-pool-gcp-1-8chvh   red-cluster-pool-gcp-1-8chvh-worker           worker           red-cluster-pool-gcp-1-8chvh   3
 
-The next step is to setup layer-3 network connectivity between the clusters across the cloud providers so that technologies such as PostgreSQL and PgPool that leverage both TCP and UDP protocols can communicate seamlessly without requiring NAT. To do so requires that we "flatten" the network between clusters so that pods and services in one cluster have line-of-sight access to pods and services in all of the other clusters (provided that the pods and services are hosted in the same namespace which effectively establishes a trust boundary). Submariner is the tool from the RHACM toolbox that can be used to establish a secure tunnel overlay between the clusters and cloud providers to enable this kind of hybrid network connectivity.
+With the physical compute resources in place we next turn our attention to the network. What needs to happen here is basically a "flattening" of the networks between the clusters so that services and pods in one cluster have direct line-of-sight to services and pods in other clusters. This hybrid network connectivity happens at layer-3 of the OSI model and supports TCP and UDP protocols across IPsec tunnels making it a very flexible and high-performance solution. Two gateways are deployed per cluster for high-availability. Please refere to the [documentation](https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.6/html/add-ons/add-ons-overview#preparing-selected-hosts-to-deploy-submariner) for prerequisites and more details on Submariner.
 
-Assuming that the preprequisites as documented [here](https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.6/html/add-ons/add-ons-overview#preparing-selected-hosts-to-deploy-submariner) have been met then the next step is to enable the Submariner add-on in RHACM, configure the broker and gateway nodes for each cluster which will result in VXLAN tunnels being established between the gateway nodes for passing IPsec traffic. An example of deploying this for clusters hosted on AWS using Policy templates is as follows.
+To configure Submariner we submit the following YAML as per the example for AWS.
+
 
 	apiVersion: addon.open-cluster-management.io/v1alpha1
 	kind: ManagedClusterAddOn
@@ -183,6 +182,8 @@ Assuming that the preprequisites as documented [here](https://access.redhat.com/
 	  cableDriver: libreswan
 	  credentialsSecret:
 	    name: '{{ (lookup "hive.openshift.io/v1" "ClusterClaim" "red-cluster-pool" "red-cluster-1").spec.namespace }}-aws-creds'
+
+Check the status of Submariner network connectivity from the RHACM console before continuing.
 
 ## Deploying PostgreSQL
 
