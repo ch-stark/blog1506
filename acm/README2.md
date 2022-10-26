@@ -423,9 +423,9 @@ Note that two of these labels (env and postgresql) were defined in the ClusterCl
 
 ## Testing
 
-Once our policies have been enabled from the RHACM console the PostgreSQL statefulset and PgPool deployment will be patched with settings contained in the ConfigMap that are pulled from the hub. In our setup we have limited the number of pod replicas to one for PgPool for simplification. In a production setup the number of PgPool pod replicas should match the scaling needs of the application and uptime SLA.
+Once our policies have been enabled from the RHACM console, the PostgreSQL statefulset and PgPool deployment will be patched with settings contained in the ConfigMap that are pulled from the hub by the policy controller. In our setup we have limited the number of PgPool replicas to one for simplification. In a production setup the number of PgPool replicas should match the scaling needs of the application and uptime SLA.
 
-At this stage the deployed resources for one of the clusters looks as per the following output. 
+At this stage the resources deployed to one of the clusters looks as per the following output. 
 
 	$ oc --context red-1 get all,pvc,endpointslices
 	NAME                                            READY   STATUS    RESTARTS   AGE
@@ -456,8 +456,55 @@ At this stage the deployed resources for one of the clusters looks as per the fo
 	endpointslice.discovery.k8s.io/pg-1-postgresql-ha-postgresql-headless-red-cluster-pool-aws-1-4thqz   IPv4          5432    10.130.2.6    24m
 	endpointslice.discovery.k8s.io/pg-2-postgresql-ha-postgresql-headless-red-cluster-pool-gcp-1-8chvh   IPv4          5432    10.134.2.6    24m
 
-The last two endpointslices composed with cluster names identify the pod IP addresses for both the local and remote PostgreSQL server and were created by Submariner.
+The last two endpointslices composed with cluster names identify the IP addresses of the local and remote PostgreSQL server pods and were created by Submariner.
 
+The next step is to test for the catastraphic loss of a cloud provider. This can be simulated using the RHACM hibernate feature to stop a running cluster resulting in the loss of network communication between the primary and standby PostgreSQL servers. After a number of failed re-connection attempts, this triggers the replication manager to promote the standby into a primary role. Before we pull the plug on the cluster let's take a look at how the replication manager and PgPool view system health.
+
+	$ repmgr -f /opt/bitnami/repmgr/conf/repmgr.conf service status
+	 ID | Name                            | Role    | Status    | Upstream                        | repmgrd | PID | Paused? | Upstream last seen
+	----+---------------------------------+---------+-----------+---------------------------------+---------+-----+---------+--------------------
+	 1000 | pg-1-postgresql-ha-postgresql-0 | primary | * running |                                 | running | 1   | no      | n/a                
+	 1001 | pg-2-postgresql-ha-postgresql-0 | standby |   running | pg-1-postgresql-ha-postgresql-0 | running | 1   | no      | 0 second(s) ago    
+ 
+
+	postgres=# show pool_nodes;
+	-[ RECORD 1 ]----------+----------------------------------------------------------------------------------------------------------------------------------
+	node_id                | 0
+	hostname               | pg-1-postgresql-ha-postgresql-0.red-cluster-pool-aws-1-4thqz.pg-1-postgresql-ha-postgresql-headless.database.svc.clusterset.local
+	port                   | 5432
+	status                 | up
+	pg_status              | up
+	lb_weight              | 0.500000
+	role                   | primary
+	pg_role                | primary
+	select_cnt             | 111
+	load_balance_node      | true
+	replication_delay      | 0
+	replication_state      | 
+	replication_sync_state | 
+	last_status_change     | 2022-10-26 00:55:34
+	-[ RECORD 2 ]----------+----------------------------------------------------------------------------------------------------------------------------------
+	node_id                | 1
+	hostname               | pg-2-postgresql-ha-postgresql-0.red-cluster-pool-gcp-1-8chvh.pg-2-postgresql-ha-postgresql-headless.database.svc.clusterset.local
+	port                   | 5432
+	status                 | up
+	pg_status              | up
+	lb_weight              | 0.500000
+	role                   | standby
+	pg_role                | standby
+	select_cnt             | 113
+	load_balance_node      | false
+	replication_delay      | 0
+	replication_state      | 
+	replication_sync_state | 
+	last_status_change     | 2022-10-26 00:55:44
+
+The results are as expected and we can now login to the RHAC console and hibernate the cluster running the primary PostgreSQL server which based on the output above is red-cluster-pool-aws-1-4thqz.
+
+<p align="center">
+  <img src="https://github.com/jwilms1971/blog/blob/main/acm/Screenshot from 2022-10-26 09-37-46.png">
+  <em>Diagram 2. Hibernating a cluster to simulate catastrophic cloud provider loss</em>
+</p>
 
 
 
