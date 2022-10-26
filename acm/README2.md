@@ -396,7 +396,7 @@ At this stage the resources deployed to one of the clusters looks as per the fol
 
 The last two endpointslices composed with cluster names identify the IP addresses of the local and remote PostgreSQL server pods and were created by Submariner.
 
-The next step is to test for the catastraphic loss of a cloud provider. This can be simulated using the RHACM hibernate feature to stop a running cluster resulting in the loss of network communication between the primary and standby PostgreSQL servers. After a number of failed re-connection attempts, this triggers the replication manager to promote the standby into a primary role. Before we pull the plug on the cluster let's take a look at how the replication manager and PgPool view system health.
+The next step is to test for the catastrophic loss of a cloud provider. This can be simulated using the RHACM hibernate feature to stop a running cluster resulting in the loss of network communication between the primary and standby PostgreSQL servers. After a number of failed re-connection attempts, this triggers the replication manager to promote the standby into a primary role. Before we pull the plug on the cluster let's take a look at how the replication manager and PgPool view system health.
 
 	$ repmgr -f /opt/bitnami/repmgr/conf/repmgr.conf service status
 	ID   | Name                            | Role    | Status    | Upstream                        | repmgrd | PID | Paused? | Upstream last seen
@@ -457,12 +457,12 @@ After a short while the standby PostgreSQL server is promoted to primary which c
 
 PgPool is also able to continue servicing clients by sending their queries to the new primary.
 
-Assuming our cloud provider doesn't stay offline indefinetely we need to prepare for the eventual restoration of service. If you recall in the configuration above we defined the primary PostgreSQL server for all statefulsets using an environment variables that is passed to the container running the PostgreSQL image. Namely this one:
+Assuming our cloud provider doesn't stay offline indefinitely we need to prepare for the eventual restoration of service. In the configuration above we defined an environment variable to identify the primary PostgreSQL server.
 
 	- name: REPMGR_PRIMARY_HOST
           value: '{{hub fromConfigMap "" "pg-config" (printf "hostname0") hub}}'
 
-If we bring back online the cluster hosting the original primary with the original configuration it will continue to think that it still is the primary resulting in a split-brain situation. To avoid this we simply edit the policies in our git repo and update them to reflect the new reality in our cluster and let the policy controller propogate these changes when the cluster comes online. For the avoidance of doubt the change to the statefulset required is as follows.
+If we bring back online the cluster hosting the original primary with the original configuration it will continue to think that it still is the primary resulting in a split-brain situation. To avoid this we simply edit the policies in our git repo and update them to reflect the new reality in our cluster and let the policy controller propagate these changes when the cluster comes online. For the avoidance of doubt the change to the statefulset required is as follows.
 
 	- name: REPMGR_PRIMARY_HOST
 	  value: '{{hub fromConfigMap "" "pg-config" (printf "hostname1") hub}}'
