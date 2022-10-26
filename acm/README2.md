@@ -213,7 +213,7 @@ The first thing that is required is to export the headless service of each Postg
 	  name: pg-2-postgresql-ha-postgresql-headless
 	  namespace: database
 
-Next we need to set the environment variables of each PostgreSQL server to use these global service names. This requires that we first define a common list of values that can be shared between clusters as they will need to know each other's identities and settings. This information must be staged on the hub (preferably using a policy that executes on the hub) so that downstream polices that configure PostgreSQL on a managed cluster can reference this information using the hub template construct as shown below.
+Next we need to set the environment variables of each PostgreSQL server to use these global service names. This requires that we first define a common list of values that can be shared between clusters as they will need to know each other's identities and settings. This information must be staged on the hub (preferably using a policy that executes on the hub) so that downstream policies that configure PostgreSQL on a managed cluster can reference this information using the hub template construct as shown below.
 
 	apiVersion: v1
 	kind: ConfigMap
