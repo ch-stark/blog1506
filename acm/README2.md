@@ -515,7 +515,7 @@ A couple of parting thoughts.
 
 * We can make use of the fact that cloud providers in the same region typically have low network latency (<10ms) between them. Thus the local PostgreSQL cluster can be configured for synchronous replication enabling a RPO of zero. This could be augmented with asynchronous replication to remote PostgreSQL clusters located in another region for protection against a large-scale disaster.
 
-* Deploy a global load-balancer that spans cluster ingress endpoints and is not dependent on the operation of the underlying cloud provider (shared fate).
+* Deploy a global load-balancer that spans across multiple cluster ingress endpoints and is itself not dependent on the availability of any of the underlying cloud providers so as to avoid a shared fate situation.
 
 ## Conclusion
 
