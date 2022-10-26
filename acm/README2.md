@@ -6,7 +6,7 @@ In this blog we look at how to realize the cluster landing zone for hybrid cloud
 
 ## Extending the Cluster Landing Zone
 
-In the previous blog we defined a multi-tenanted operating model on the hub for individual application teams to manage stateless workloads using ArgoCD and SREs to perform cluster administration using policies to for all cluster lifecycle operations. In this blog we extend this model to include DBAs who also need to perform operations on clusters such as provisioning databases. This will be accomplished via policies given their flexible and powerful nature. The revised cluster landing zone model is depicted in the following diagram.
+In the previous blog we defined a multi-tenanted operating model on the hub for individual application teams to manage stateless workloads using ArgoCD and SREs to perform cluster administration using policies for all cluster lifecycle operations. In this blog we extend this model to include DBAs who also need to perform operations on clusters such as provisioning databases. This will be accomplished via policies given their flexible and powerful nature. The revised cluster landing zone model is depicted in the following diagram.
 
 <p align="center">
   <img src="https://github.com/jwilms1971/blog/blob/main/acm/Cluster%20Landing%20Zones%20-%20Hybrid-cloud%20advanced.png">
@@ -15,13 +15,13 @@ In the previous blog we defined a multi-tenanted operating model on the hub for 
 
 Projects within ArgoCD will need to be configured by SREs to allow DBAs to deploy policies to a specific namespace (dba-policies) with restrictions placed on the kinds of resources (Policies, Placements, ConfigMaps) that can be deployed to here as per principle of least privilege. Via RBAC our DBAs are not able to edit the contents of any other namespace on the hub.
 
-The diagram introduces MachinePools which are hub-side constructs that define and scale a set of workers either via the RHACM console or via YAML. We will be using the default pool for running stateless workloads and add a machine pool (comprised of a single node) for running a stateful workload (PostgreSQL). PostgreSQL is a common open-source database used in many cloud-native projects and has in-built replication and failover capabilities which we will be exploring in this blog.
+The diagram introduces MachinePools which are hub-side constructs that define and scale a set of workers either via the RHACM console or via YAML. We will be using the default pool for running stateless workloads and a separate machine pool (composed of a single node) for running a stateful workload (PostgreSQL). PostgreSQL is a common open-source database used in many cloud-native projects and has in-built replication and failover capabilities which we will be exploring in this blog.
 
 ## Deploying the Cluster Landing Zone
 
 The next set of instructions are intended to be executed by the SREs as they pertain to cluster configuration. The starting point here is a hub cluster with no managed clusters in existence. The YAML files shown here should go into a policy set such as openshift-provisioning as shown in the diagram.
 
-We start of by defining an empty ManagedClusterSet that serves as a logical grouping for clusters spawned from one or more cloud providers.
+We start by defining an empty ManagedClusterSet that serves as a logical grouping for clusters spawned from one or more cloud providers.
 
 	apiVersion: cluster.open-cluster-management.io/v1beta1
 	kind: ManagedClusterSet
@@ -108,7 +108,7 @@ The resulting set of clusters are as follows.
 	red-cluster-pool-aws-1-4thqz   true           https://api.red-cluster-pool-aws-1-4thqz.aws.jwilms.net:6443   True     True        4h37m
 	red-cluster-pool-gcp-1-8chvh   true           https://api.red-cluster-pool-gcp-1-8chvh.gcp.jwilms.net:6443   True     True        4h45m
 
-Note that cluster names are dynamically generated when using ClusterClaims. This should not be an issue provided applications are not exposed using the cluster domain name, i.e., applications should use the [appsDomain feature](https://docs.openshift.com/container-platform/4.11/networking/ingress-operator.html#nw-ingress-configuring-application-domain_configuring-ingress), or deploy a secondary ingress controller to fully decouple the application plane from the administration plane.
+Note that cluster names are dynamically generated when using ClusterClaims. This should not be an issue provided applications are not exposed using the cluster domain name, i.e., applications should use the [appsDomain feature](https://docs.openshift.com/container-platform/4.11/networking/ingress-operator.html#nw-ingress-configuring-application-domain_configuring-ingress), or deploy a secondary ingress controller to decouple the application plane from the administration plane.
 
 By default each cluster spins up with three worker nodes which will be used for hosting stateless workloads. In the next step we add a machine pool for hosting stateful workloads which typically have their own performance needs. Each machine pool will have only a single worker node since we will be configuring PostgreSQL in an active/standby configuraiton across two clusters in separate cloud providers.
 
