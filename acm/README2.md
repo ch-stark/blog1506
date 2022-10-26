@@ -509,7 +509,7 @@ The view from PgPool is as follows.
 
 Notice that PgPool correctly reports the new primary and standby roles in the column pg_role but reports the old values in the role column. In practice this does not appear to matter as read/write queries are both processed correctly. After restarting PgPool both sets of values are correctly aligned. This concludes the test.
 
-A couple of parting thoughts.  
+Some parting thoughts:
 
 * For a production environment we could add a third standby (on a separate cloud provider) or a witness node (on a HyperShift cluster) to establish quorum so as to avoid various split-brain scenarios and for strong fencing which is considered a best practice. Doing so would also enable a transition to a solution with a RTO approaching zero.
 
