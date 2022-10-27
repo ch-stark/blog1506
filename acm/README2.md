@@ -2,26 +2,26 @@
 
 ## Overview
 
-In this blog we look at how to realize the cluster landing zone for hybrid cloud that was introduced in the previous [blog](https://cloud.redhat.com/blog/a-guide-to-cluster-landing-zones-for-hybrid-and-multi-cloud-architectures) with full support for both stateless and stateful workloads in a cloud-agnostic manner, including testing of failover and failback. To this end we will make extensive use of various tools within the Red Hat Advanced Cluster Management (RHACM) toolbox to compose our solution.
+In this blog we look at how to realize the cluster landing zone for hybrid cloud which was introduced in the previous [blog](https://cloud.redhat.com/blog/a-guide-to-cluster-landing-zones-for-hybrid-and-multi-cloud-architectures). We will extend it so that it can run both stateless and stateful workloads in a cloud-agnostic manner. To this end we will make use of various tools within the Red Hat Advanced Cluster Management (RHACM) toolbox for a frictionless implementation.
 
 ## Extending the Cluster Landing Zone
 
-In the previous blog we defined a multi-tenanted operating model on the hub for individual application teams to manage stateless workloads using ArgoCD and SREs to perform cluster administration using policies for all cluster lifecycle operations. In this blog we extend this model to include DBAs who also need to perform operations on clusters such as provisioning databases. This will be accomplished via policies given their flexible and powerful nature. The revised cluster landing zone model is depicted in the following diagram.
+In the previous blog we defined a multi-tenanted operating model for the hub to enable individual application teams to manage stateless workloads on managed clusters using ArgoCD. The needs of SREs were also considered so that they can perform cluster lifecycle operations using RHACM Policies. In this blog we extend this model to include DBAs who need to perform operations such as provisioning databases on managed clusters. The revised cluster landing zone model is depicted in the following diagram.
 
 <p align="center">
   <img src="https://github.com/jwilms1971/blog/blob/main/acm/Cluster%20Landing%20Zones%20-%20Hybrid-cloud%20advanced.png">
   <em>Diagram 1. Cluster landing zone for a hybrid cloud architecture</em>
 </p>
 
-Projects within ArgoCD will need to be configured by SREs to allow DBAs to deploy policies to a specific namespace (dba-policies) with restrictions placed on the kinds of resources (Policies, Placements, ConfigMaps) that can be deployed to here as per principle of least privilege. Via RBAC our DBAs are not able to edit the contents of any other namespace on the hub.
+SREs will need to configure Projects within ArgoCD to restrict DBAs operations to a specific namespace (dba-policies) including restrictions placed on the kinds of resources that can be deployed, i.e., Policies, Placements, and ConfigMaps.
 
-The diagram introduces MachinePools which are hub-side constructs that define and scale a set of workers either via the RHACM console or via YAML. We will be using the default pool for running stateless workloads and a separate machine pool (composed of a single node) for running a stateful workload (PostgreSQL). PostgreSQL is a common open-source database used in many cloud-native projects and has in-built replication and failover capabilities which we will be exploring in this blog.
+The diagram introduces MachinePools which are hub-side constructs that result in the creation of workers on managed clusters that can then be scaled via the RHACM console. We will be using the default worker pool for running stateless workloads and a separate machine pool, composed of a single worker node, for running stateful backend workloads, in this case PostgreSQL. PostgreSQL was chosen because it is a well-known open-source database used across many cloud-native projects and comes with built-in replication and failover capabilities which we will be leveraging for high-availability.
 
 ## Deploying the Cluster Landing Zone
 
-The next set of instructions are intended to be executed by the SREs as they pertain to cluster configuration. The starting point here is a hub cluster with no managed clusters in existence. The YAML files shown here should go into a policy set such as openshift-provisioning as shown in the diagram.
+The next set of instructions are intended to be executed by our SREs as they pertain to cluster provisioning and configuration. The starting point here is a hub cluster with no managed clusters in existence. The YAML files shown here should go into a policy set aligned to provisioning tasks as shown in the diagram.
 
-We start by defining an empty ManagedClusterSet that serves as a logical grouping for clusters spawned from one or more cloud providers.
+We start by defining an empty ManagedClusterSet that serves as a logical grouping for any clusters spawned from one or more cloud providers.
 
 	apiVersion: cluster.open-cluster-management.io/v1beta1
 	kind: ManagedClusterSet
@@ -29,7 +29,7 @@ We start by defining an empty ManagedClusterSet that serves as a logical groupin
 	  name: red-cluster-set
 	spec: {}
 
-We create a namespace (dba-policies) and bind this to the ManagedClusterSet so that any policies written to here can be executed against the clusters bound by this set. For more details on how ManagedClusterSets and namespace bindings work together please refer to [here](https://open-cluster-management.io/concepts/managedclusterset/#what-is-managedclusterset). Because we also need to generate some common configuration information that needs to be shared across all of the clusters hosting PostgreSQL servers this needs to be stored on the hub cluster itself as a ConfigMap and thus we also need to be bind the dba-policies namespace to the hub (identified by the default ManagedClusterSet).
+We create a namespace (dba-policies) and bind this to the ManagedClusterSet so that any policies written here can only be executed against clusters in the ManagedClusterSet. For more details on how ManagedClusterSets and namespace bindings work together please refer to [here](https://open-cluster-management.io/concepts/managedclusterset/#what-is-managedclusterset). Because we also need to generate some common configuration information that will be shared across all clusters hosting PostgreSQL, this needs to be stored on the hub cluster itself as a ConfigMap in the dba-policies namespaces. Thus we also need to allow any policies written to dba-policies to propagate to the hub which is identified by the default ManagedClusterSet.
 
 	apiVersion: cluster.open-cluster-management.io/v1beta1
 	kind: ManagedClusterSetBinding
