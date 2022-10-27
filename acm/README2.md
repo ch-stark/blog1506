@@ -2,7 +2,7 @@
 
 ## Overview
 
-In this blog we look at how to realize the cluster landing zone for hybrid cloud which was introduced in the previous [blog](https://cloud.redhat.com/blog/a-guide-to-cluster-landing-zones-for-hybrid-and-multi-cloud-architectures). We will extend it so that it can run both stateless and stateful workloads in a cloud-agnostic manner. To this end we will make use of various tools within the Red Hat Advanced Cluster Management (RHACM) toolbox for a frictionless implementation.
+In this blog we look at how to realize a cluster landing zone for the hybrid cloud architecture that was introduced in the previous [blog](https://cloud.redhat.com/blog/a-guide-to-cluster-landing-zones-for-hybrid-and-multi-cloud-architectures). We will extend it so that it can run both stateless and stateful workloads in a cloud-agnostic manner. To this end we will make use of various tools within the Red Hat Advanced Cluster Management (RHACM) toolbox for a frictionless implementation.
 
 ## Extending the Cluster Landing Zone
 
