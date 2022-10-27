@@ -356,7 +356,7 @@ The Policy Generator leverages Placements to map Policies to clusters. An exampl
 
 Here we are using a mix of custom and auto-generated labels to identify clusters in scope. At no point do we ever refer to the dynamically generated name of the cluster given that this name will change whenever the cluster is rebuilt. Also note that we include a filter for clusterSets here as it is possible that our DBA may be managing clusters for multiple teams using similar labels, and thus the filter helps to ensure that policies target only clusters belonging to the red team.
 
-## Testing
+## Simulating Cloud Provider Failure
 
 Once our policies have been enabled via the RHACM console triggering the Policy controller to patch the PostgreSQL statefulset and PgPool deployment with the settings from the ConfigMap which will be transferred to the managed clusters. In our setup we have limited the number of PgPool replicas to just one for simplification. In a production setup the number of PgPool replicas should match the scaling needs of the application and uptime SLA requirements.
 
