@@ -29,7 +29,7 @@ We start by defining an empty ManagedClusterSet that serves as a logical groupin
 	  name: red-cluster-set
 	spec: {}
 
-We create a namespace (dba-policies) and bind this to the managed cluster set so that any policies written to here can be executed against the clusters in the managed cluster set (the policy controller checks for this binding). For more details on how managed cluster sets and namespace bindings work please refer to [here](https://open-cluster-management.io/concepts/managedclusterset/#what-is-managedclusterset). Because we also need to generate some common configuration information that needs to be shared across all of the clusters hosting PostgreSQL servers this needs to be stored on the hub cluster itself as a ConfigMap and thus we also need to be bind the dba-policies namespace to the hub.
+We create a namespace (dba-policies) and bind this to the ManagedClusterSet so that any policies written to here can be executed against the clusters bound by this set. For more details on how ManagedClusterSets and namespace bindings work together please refer to [here](https://open-cluster-management.io/concepts/managedclusterset/#what-is-managedclusterset). Because we also need to generate some common configuration information that needs to be shared across all of the clusters hosting PostgreSQL servers this needs to be stored on the hub cluster itself as a ConfigMap and thus we also need to be bind the dba-policies namespace to the hub (identified by the default ManagedClusterSet).
 
 	apiVersion: cluster.open-cluster-management.io/v1beta1
 	kind: ManagedClusterSetBinding
@@ -47,7 +47,7 @@ We create a namespace (dba-policies) and bind this to the managed cluster set so
 	spec:
 	  clusterSet: default
 
-ClusterPools encapsulate details of the underlying cloud provider infrastructure and assign any clusters spawned from it to a managed cluster set. For brevity, detailed specification of referenced resources are not shown and the example shown is for AWS. A corresponding ClusterPool for GCP needs to be defined with a non-overlapping network address space which is a Submariner pre-requisite.
+ClusterPools encapsulate details of the underlying cloud provider infrastructure and assign any clusters spawned from it to a ManagedClusterSet. The example shown is for AWS and for brevity detailed specifications are omitted. A corresponding ClusterPool resource for GCP also needs to be defined with a non-overlapping network address space as this is a Submariner pre-requisite.
 
 	apiVersion: hive.openshift.io/v1
 	kind: ClusterPool
