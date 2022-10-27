@@ -29,7 +29,7 @@ We start by defining an empty ManagedClusterSet that serves as a logical groupin
 	  name: red-cluster-set
 	spec: {}
 
-We create a namespace (dba-policies) and bind this to the managed cluster set so that any policies written to here can be executed against the clusters in the managed cluster set (the policy controller checks for this binding). Because we also need to generate some common configuration information that needs to be shared across all of the clusters hosting PostgreSQL servers this needs to be stored on the hub cluster itself as a ConfigMap and thus we also need to be bind the dba-policies namespace to the hub.
+We create a namespace (dba-policies) and bind this to the managed cluster set so that any policies written to here can be executed against the clusters in the managed cluster set (the policy controller checks for this binding). For more details on how managed cluster sets and namespace bindings work please refer to [here](https://open-cluster-management.io/concepts/managedclusterset/#what-is-managedclusterset). Because we also need to generate some common configuration information that needs to be shared across all of the clusters hosting PostgreSQL servers this needs to be stored on the hub cluster itself as a ConfigMap and thus we also need to be bind the dba-policies namespace to the hub.
 
 	apiVersion: cluster.open-cluster-management.io/v1beta1
 	kind: ManagedClusterSetBinding
