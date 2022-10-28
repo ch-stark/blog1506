@@ -432,14 +432,14 @@ The next step is to test for the catastrophic loss of a cloud provider region wh
 	replication_sync_state | 
 	last_status_change     | 2022-10-26 00:55:44
 
-Everthing looks good and we can now login to the RHAC console and hibernate the cluster on AWS which is running the primary PostgreSQL server.
+Everthing looks good and we can login to the RHAC console and hibernate the cluster on AWS which is running the primary PostgreSQL server.
 
 <p align="center">
   <img src="https://github.com/jwilms1971/blog/blob/main/acm/Screenshot from 2022-10-26 09-37-46.png">
   <em>Diagram 3. Hibernating a cluster to simulate the catastrophic loss of a cloud provider</em>
 </p>
 
-After a short while the standby PostgreSQL server gets automatically promoted to the primary role which can be seen in the following output.
+After a short while the standby PostgreSQL server is automatically promoted to a primary role which can be seen in the following output.
 
 	$ repmgr -f /opt/bitnami/repmgr/conf/repmgr.conf service status
 	ID   | Name                            | Role    | Status    | Upstream | repmgrd | PID | Paused? | Upstream last seen
@@ -450,19 +450,19 @@ After a short while the standby PostgreSQL server gets automatically promoted to
 	WARNING: following issues were detected
 	  - unable to  connect to node "pg-1-postgresql-ha-postgresql-0" (ID: 1000)
 
-Assuming our cloud provider doesn't stay offline indefinitely we need to prepare for the eventual restoration of the downed PostgreSQL server. In the configuration above we defined an environment variable to identify the primary server.
+Assuming our cloud provider does not stay offline indefinitely we need to prepare for the eventual restoration of the downed PostgreSQL server. In the configuration above we defined an environment variable to identify the primary server.
 
 	- name: REPMGR_PRIMARY_HOST
           value: '{{hub fromConfigMap "" "pg-config" (printf "hostname0") hub}}'
 
-If we bring back online the cluster hosting the downed PostgreSQL server it will continue to think that it still the primary server event though the standby has been promoted. This will result in a split-brain situation which is undesirable. To avoid this we must update the YAML to reflect the new order of things in our cluster and let the Policy Controller propagate these changes immediately when the cluster comes back online. The changes required to the StatefulSet configuration which must be applied to both PostgreSQL servers is to update the environment variable REPMGR_PRIMARY_HOST with the identity of the new primary.
+If we bring back online the cluster hosting the downed PostgreSQL server without changing this configuration it will continue to think that it still is the primary server even though the standby has been promoted. This will result in a split-brain situation which is undesirable. To avoid this we must first update our YAML to reflect the new order of things and let the Policy Controller propagate these changes immediately when the cluster comes back online. The changes required to the StatefulSet configuration which must be applied to both PostgreSQL servers is as follows.
 
 	- name: REPMGR_PRIMARY_HOST
 	  value: '{{hub fromConfigMap "" "pg-config" (printf "hostname1") hub}}'
 
 After making these changes, the next step is to resume the cluster from the RHACM console. Note that there is no need to update the PgPool deployment configuration. 
 
-Checking the output of the replication manager after both primary and standby servers have been updated and restarted shows the following.
+Checking the output of the replication manager after both primary and standby servers have been updated and restarted shows that they are both running with correct roles.
 
 	$ repmgr -f /opt/bitnami/repmgr/conf/repmgr.conf service status
 	ID   | Name                            | Role    | Status    | Upstream                        | repmgrd | PID | Paused? | Upstream last seen
@@ -470,7 +470,7 @@ Checking the output of the replication manager after both primary and standby se
 	1000 | pg-1-postgresql-ha-postgresql-0 | standby |   running | pg-2-postgresql-ha-postgresql-0 | running | 1   | no      | 1 second(s) ago    
 	1001 | pg-2-postgresql-ha-postgresql-0 | primary | * running |                                 | running | 1   | no      | n/a                
 
-The output for PgPool is as follows.
+The output for PgPool is as follows. Note that there is a discrepancy between the roles. Whilst this has no material bearing on reads or writes it is misleading and can be fixed by simply restarting PgPool which will show correct status values.
 
 	postgres=# show pool_nodes;
 	-[ RECORD 1 ]----------+----------------------------------------------------------------------------------------------------------------------------------
@@ -504,11 +504,9 @@ The output for PgPool is as follows.
 	replication_sync_state | 
 	last_status_change     | 2022-10-26 02:22:34
 
-Notice that PgPool correctly reports the new primary and standby roles in the column pg_role but reports incorrect values in the role column. In practice this does not appear to matter as read/write queries are routed correctly. After restarting PgPool both sets of values will be correctly aligned. 
-
 Some parting thoughts:
 
-* For a production environment we could add a third standby (on a separate cloud provider) as part of a scale-out solution, or a witness node (on a HyperShift cluster) to establish quorum so as to avoid other possible split-brain scenarios and for strong fencinge. Doing so would help to achieve a lower RTO than the current solution.
+* For a production environment we could add a third standby (on a separate cloud provider) as part of a scale-out solution, or a witness node (on a HyperShift cluster) to establish quorum so as to avoid other possible split-brain scenarios and for strong fencing. Doing so would help to achieve a lower RTO than the current solution.
 
 * We can make use of the fact that cloud providers located in the same region typically have a network latency of under 10 milliseconds. Thus our local PostgreSQL clusters could be configured for synchronous replication which will enable a RPO of zero. This could be augmented with asynchronous replication to a remote set of PostgreSQL clusters located in other regions for disaster recovery purposes.
 
@@ -516,4 +514,4 @@ Some parting thoughts:
 
 ## Conclusion
 
-In this blog and the previous blog we have shown how various tools from the RHACM toolbox can be used to build a non-trivial solution based on an open hybrid cloud architecture. The benefit of doing so is higher levels of availability and scalability, and independence from any specific cloud vendors APIs.
+In this blog and the previous blog we have shown how various tools from the RHACM toolbox can be used to build a non-trivial solution based on an open hybrid cloud architecture. The benefits of doing so include higher levels of availability and scalability, and independence from cloud vendors APIs.
