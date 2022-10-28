@@ -108,9 +108,9 @@ The resulting set of managed clusters is as follows.
 	red-cluster-pool-aws-1-4thqz   true           https://api.red-cluster-pool-aws-1-4thqz.aws.jwilms.net:6443   True     True        4h37m
 	red-cluster-pool-gcp-1-8chvh   true           https://api.red-cluster-pool-gcp-1-8chvh.gcp.jwilms.net:6443   True     True        4h45m
 
-Note that cluster names are dynamically generated as part of this process. This should not be an issue provided applications are being published using a domain name that does not include the cluster hostname. In the event that the cluster is destroyed, or recreated, it will spin up with a different hostname. To address this consider using the [appsDomain feature](https://docs.openshift.com/container-platform/4.11/networking/ingress-operator.html#nw-ingress-configuring-application-domain_configuring-ingress), or a secondary ingress controller with a custom domain name to separate cluster administration endpoints from application service delivery.
+Note that cluster hostnames are dynamically generated as part of this process. This should not be an issue provided applications are being published using a domain name that does not include the cluster hostname. In the event that the cluster is destroyed, or recreated, it will spin up with a different hostname. To address this consider using the [appsDomain feature](https://docs.openshift.com/container-platform/4.11/networking/ingress-operator.html#nw-ingress-configuring-application-domain_configuring-ingress), or a secondary ingress controller with a custom domain name to separate cluster administration endpoints from application service delivery.
 
-By default each cluster spins up with three worker nodes which will be used for hosting stateless frontend workloads. In the next step we add a MachinePool for hosting stateful backend workloads as these typically have their own performance needs and lifecycle pattern. Each MachinePool will have only a single worker node allocated as described earlier.
+By default each cluster spins up with three worker nodes which will be used to host stateless frontend workloads (PgPool). To this we add a MachinePool to host our stateful backend workloads (PostgreSQL), as stateful workloads typically have their own performance needs and lifecycle pattern. Each MachinePool will have only a single worker node allocated as described earlier.
 
 	apiVersion: hive.openshift.io/v1
 	kind: MachinePool
@@ -135,9 +135,9 @@ By default each cluster spins up with three worker nodes which will be used for 
 	      type: m6i.xlarge
 	  replicas: 1
 	
-This YAML file uses templating to map a known quantity (the name of the ClusterClaim) to an unknown quantity (the name of the cluster). See the following [blog](https://cloud.redhat.com/blog/applying-policy-based-governance-at-scale-using-templates) for more details as well this [blog](https://cloud.redhat.com/blog/generating-governance-policies-using-kustomize-and-gitops) which introduces the Policy Generator tool which can processes YAML template files and turn them into policies that RHACM can then apply.
+This YAML file makes use of templating to map a known quantity (the ClusterClaim name) to an unknown quantity (the cluster hostname). See the following [blog](https://cloud.redhat.com/blog/applying-policy-based-governance-at-scale-using-templates) for more details on this process and this [blog](https://cloud.redhat.com/blog/generating-governance-policies-using-kustomize-and-gitops) which explains the Policy Generator tool that will be used to turn YAML files into Policies as will be shown later.
 
-The MachinePool configuration as seen from the hub is as follows.
+The configuration of MachinePools for each managed cluster is as follows.
 
 	$ oc get machinepools -A
 	NAMESPACE                      NAME                                          POOLNAME         CLUSTERDEPLOYMENT              REPLICAS
@@ -146,10 +146,9 @@ The MachinePool configuration as seen from the hub is as follows.
 	red-cluster-pool-gcp-1-8chvh   red-cluster-pool-gcp-1-8chvh-backend-worker   backend-worker   red-cluster-pool-gcp-1-8chvh   1
 	red-cluster-pool-gcp-1-8chvh   red-cluster-pool-gcp-1-8chvh-worker           worker           red-cluster-pool-gcp-1-8chvh   3
 
-With compute resources in place we next turn our attention to the cross-cluster network. What needs to happen here is basically a "flattening" of the networks between the managed clusters so that services and pods in one cluster have a direct line-of-sight to services and pods located in other clusters. This hybrid network connectivity happens at layer-3 of the OSI model and supports both TCP and UDP protocols across IPsec tunnels making it a very flexible, secure and a high-performance solution that is mostly transparent. Two gateways are deployed per cluster for high-availability. Please refer to the [documentation](https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.6/html/add-ons/add-ons-overview#preparing-selected-hosts-to-deploy-submariner) for prerequisites and more details on Submariner.
+With our machines instantiated as cluster nodes, we now turn our attention to establishing a cross-cluster network so that the PostgreSQL server hosted in one cluster can communicate to the PostgreSQL server hosted in another cluster. A "flattening" of the network between managed clusters is required so that services and pods in one cluster have direct line-of-sight access to services and pods in other clusters. Submariner establishes hybrid network connectivity at layer-3 of the OSI model and supports both TCP and UDP protocols using IPsec tunnels. Please refer to the [documentation](https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.6/html/add-ons/add-ons-overview#preparing-selected-hosts-to-deploy-submariner) for more details on Submariner and prerequisites.
 
-To configure Submariner we submit the following YAML as per this example for AWS, again using templating to derive cluster names.
-
+To configure Submariner we submit the following YAML as per this example for AWS, again using templates to derive cluster hostnames.
 
 	apiVersion: addon.open-cluster-management.io/v1alpha1
 	kind: ManagedClusterAddOn
@@ -183,20 +182,20 @@ To configure Submariner we submit the following YAML as per this example for AWS
 	  credentialsSecret:
 	    name: '{{ (lookup "hive.openshift.io/v1" "ClusterClaim" "red-cluster-pool" "red-cluster-1").spec.namespace }}-aws-creds'
 
-Check the status of the Submariner network from the RHACM console before continuing.
+Before proceeding to setup PostgreSQL check the status of the Submariner network from within the RHACM console.
 
 <p align="center">
   <img src="https://github.com/jwilms1971/blog/blob/main/acm/Screenshot from 2022-10-26 12-54-17.png">
-  <em>Diagram 2. Submariner setup for two clusters spanning two cloud providers</em>
+  <em>Diagram 2. Submariner setup for two managed clusters spanning two cloud providers</em>
 </p>
 
 ## Deploying PostgreSQL
 
-All of the steps shown so far are intended to be executed by SREs who are responsible for the cluster fleet including configuration, capacity and networking. The next set of steps are intended to be executed by our DBAs using RHACM Policies which will be written to the dba-policies namespace via the OpenShift GitOps instance running on the hub. From here they will be picked up by the Policy controller and applied to all managed clusters based on Placement resources defined later.
+The following steps are intended to be executed by our DBAs using RHACM Policies which will be stored in the dba-policies namespace via the OpenShift GitOps engine running on the hub cluster. From here they will be picked up by the Policy Controller and applied to all managed clusters selected by Placement resources.
 
-Depending on whether you are using Operators or Helm charts to install PostgreSQL the steps may vary and are well-covered by the respective distribution providers. The main considerations for deploying PostgreSQL in a hybrid cloud environment include tuning of timeouts related to network latency and high-performance block storage. Other factors related to a production setup are discussed later. In our setup we will be focusing on deploying PostgreSQL in an active/standby configuration into a hybrid network established by Submariner, such that the active primary instance runs on a cluster in AWS and the passive standby instance runs on a cluster in GCP. Both PostgreSQL servers are part of a replication cluster and fronted by PgPool for load-balancing and connection pooling.
+Depending on whether you are using Operators or Helm charts to install PostgreSQL the steps may vary and are well-covered by the respective providers. The main considerations for deploying PostgreSQL in a hybrid cloud environment include tuning of timeouts related to networking and access to high-performance storage. Other factors related to a production setup are discussed later. In our setup we will be focusing on deploying PostgreSQL in an active/standby configuration with connectivity provided by the hybrid network established by Submariner. The active primary PostgreSQL server runs on a cluster in AWS and the passive standby PostgreSQL server runs on a cluster in GCP. Both PostgreSQL servers are part of a replication cluster and fronted by PgPool for load-balancing and connection pooling.
 
-To complete the integration of PostgreSQL with the hybrid network that Submariner has created requires specific configuration for PostgreSQL to connect to services on the clusterset.local domain instead of the usual cluster.local domain. This domain is created for us by Submariner when we generate ServiceExport resources for our headless service that gets created by the StatefulSet resource that deploys PostgreSQL.
+To complete the integration of PostgreSQL with the hybrid network requires specifying the endpoint hostnames of the PostgreSQL servers which will be located on the clusterset.local domain instead of the usual cluster.local domain. The endpoint hostnames are created for us by Submariner when we submit ServiceExport resources that reference the headless service created by the StatefulSet. Note that we distinguish between PostgreSQL servers using the pg-1 and pg-2 prefixes.
 
 	apiVersion: multicluster.x-k8s.io/v1alpha1
 	kind: ServiceExport
@@ -210,7 +209,7 @@ To complete the integration of PostgreSQL with the hybrid network that Submarine
 	  name: pg-2-postgresql-ha-postgresql-headless
 	  namespace: database
 
-Next we need to set environment variables for each PostgreSQL server to use these clusterset.local service names. This must be generated and stored on the hub as this is the only system which has knowledge of all the managed clusters. This will then be referenced by subsequent YAML that target specific managed clusters.
+Next we need to define common configuration on the hub cluster that will be referenced later when configuring the respective PostgreSQL servers.
 
 	apiVersion: v1
 	kind: ConfigMap
@@ -225,7 +224,7 @@ Next we need to set environment variables for each PostgreSQL server to use thes
 	  hostname0: 'pg-1-postgresql-ha-postgresql-0.{{- (lookup "hive.openshift.io/v1" "ClusterClaim" "red-cluster-pool" "red-cluster-1").spec.namespace -}}.pg-1-postgresql-ha-postgresql-headless.database.svc.clusterset.local'
 	  hostname1: 'pg-2-postgresql-ha-postgresql-0.{{- (lookup "hive.openshift.io/v1" "ClusterClaim" "red-cluster-pool" "red-cluster-2").spec.namespace -}}.pg-2-postgresql-ha-postgresql-headless.database.svc.clusterset.local'
 
-The following YAML extracts the values from the ConfigMap and puts them into the correct environment variables in the right order. These YAML files will be used by RHACM Policies to patch PostgreSQL servers and PgPool post-installation.
+The following YAML references the ConfigMap and copies the values into the correct environment variables on the managed clusters.
 
 	apiVersion: apps/v1
 	kind: StatefulSet
@@ -287,9 +286,7 @@ The following YAML extracts the values from the ConfigMap and puts them into the
 	        image: # set this to you pgpool container image
 	        name: pgpool
 
-Repeat the above for the standby PostgreSQL server represented by the prefix pg-2, adjusting environment variables accordingly.
-
-Here is the contents of the Policy Generator configuration file that will be used to ingest all of the files above stored in their respective subdirectories depending on which type of cluster the policy should be executed on. Note that all policies will be loaded into RHACM in a disabled state so that they can be enabled only after the DBA has finished with the baseline installation of PostgreSQL on each cluster. In our case this was performed using a Helm chart with replicas set to zero.
+Here is the contents of the Policy Generator configuration that will be used to ingest all of the files above and translate them into Policies that RHACM will apply to the managed clusters. Note that the Policies are loaded in a disabled state as they should only be enabled by the DBA after PostgreSQL software has been installed.
 
 	apiVersion: policy.open-cluster-management.io/v1
 	kind: PolicyGenerator
@@ -335,7 +332,7 @@ Here is the contents of the Policy Generator configuration file that will be use
 	    placement:
 	      placementPath: input/placement-red-standalone-clusters-gcp-1.yaml
 
-The Policy Generator leverages Placements to map Policies to clusters. An example Placement resource is as follows.
+The Policy Generator leverages Placement resources to map Policies to managed clusters. An example Placement resource is as follows.
 
 	apiVersion: cluster.open-cluster-management.io/v1beta1
 	kind: Placement
@@ -354,11 +351,11 @@ The Policy Generator leverages Placements to map Policies to clusters. An exampl
                   - {key: env, operator: In, values: ["dev"]}
                   - {key: postgresql, operator: In, values: ["pg-1"]}
 
-Here we are using a mix of custom and auto-generated labels to identify clusters in scope. At no point do we ever refer to the dynamically generated name of the cluster given that this name will change whenever the cluster is rebuilt. Also note that we include a filter for clusterSets here as it is possible that our DBA may be managing clusters for multiple teams using similar labels, and thus the filter helps to ensure that policies target only clusters belonging to the red team.
+Here we are using a mix of custom and auto-generated labels to identify clusters in scope. At no point do we ever refer to the dynamically generated name of the cluster given that this name will change whenever the cluster is rebuilt. Also note that we include a filter for clusterSets here as it is possible that our DBA may be managing clusters for multiple teams using similar labels; the filter helps to ensure that policies target only clusters belonging to the red team.
 
 ## Simulating Cloud Provider Failure
 
-Once our policies have been enabled via the RHACM console triggering the Policy controller to patch the PostgreSQL statefulset and PgPool deployment with the settings from the ConfigMap which will be transferred to the managed clusters. In our setup we have limited the number of PgPool replicas to just one for simplification. In a production setup the number of PgPool replicas should match the scaling needs of the application and uptime SLA requirements.
+Once our policies have been enabled via the RHACM console this will trigger the Policy Controller to patch the PostgreSQL StatefulSet and PgPool Deployment with values from the ConfigMap which will be transferred to the managed clusters. In our setup we have limited the number of PgPool replicas to just one for simplification. In a production setup the number of PgPool replicas should match the scaling needs of the application and uptime SLA requirements.
 
 At this stage the resources deployed to the AWS cluster look as per the following output. 
 
@@ -391,9 +388,9 @@ At this stage the resources deployed to the AWS cluster look as per the followin
 	endpointslice.discovery.k8s.io/pg-1-postgresql-ha-postgresql-headless-red-cluster-pool-aws-1-4thqz   IPv4          5432    10.130.2.6    24m
 	endpointslice.discovery.k8s.io/pg-2-postgresql-ha-postgresql-headless-red-cluster-pool-gcp-1-8chvh   IPv4          5432    10.134.2.6    24m
 
-The last two endpointslices composed with cluster names identify the IP addresses of the local and remote PostgreSQL servers on both AWS and GCP clusters and are the result of the ServiceExport resource.
+The last two endpointslices composed with cluster names identify the IP addresses of the local and remote PostgreSQL server pods and are the product of the ServiceExport resource.
 
-The next step is to test for catastrophic loss of a cloud provider region which can happen due to a cascading failure, misconfiguration error or vulnerability exploit that affects the control plane logic. This can be simulated using the RHACM Hibernate feature to stop a running cluster resulting in loss of network connectivity between the primary and standby PostgreSQL servers. After a number of failed re-connection attempts, the decision logic within the PostgreSQL replication manager will promote the standby server into a primary role. Before we pull the plug on the OpenShift cluster on AWS, let's take a look at how the replication manager and PgPool currently view the health of the PostgreSQL servers.
+The next step is to test for the catastrophic loss of a cloud provider region which can happen due to a cascading failure, misconfiguration error, or a vulnerability exploit that affects critical control plane functions. This can be simulated using the Hibernate feature in RHACM which will stop a running cluster, resulting in the loss of network connectivity between the primary and standby PostgreSQL servers. After a number of failed re-connection attempts, the decision logic within the PostgreSQL replication manager will promote the standby server into a primary role. Before we pull the plug, let's take a look at how the replication manager and PgPool view the current health status of each PostgreSQL server.
 
 	$ repmgr -f /opt/bitnami/repmgr/conf/repmgr.conf service status
 	ID   | Name                            | Role    | Status    | Upstream                        | repmgrd | PID | Paused? | Upstream last seen
