@@ -19,9 +19,9 @@ The diagram above shows how workers for each OpenShift cluster are segregated in
 
 ## Deploying the Cluster Landing Zone
 
-The next set of instructions are intended to be executed by our SREs as they pertain to cluster provisioning and configuration. The starting point here is a hub cluster with no managed clusters in existence. The YAML files shown here should go into a policy set aligned to provisioning tasks as shown in the diagram.
+The following set of instructions are intended to be executed by the SREs as they pertain to cluster provisioning and configuration management. The YAML files shown here are intended to be applied using RHACM Policies which will be explained in more detail later.
 
-We start by defining an empty ManagedClusterSet that serves as a logical grouping for any clusters spawned from one or more cloud providers.
+We start by defining an empty ManagedClusterSet that serves as a logical grouping for any clusters created in a public or private cloud provider.
 
 	apiVersion: cluster.open-cluster-management.io/v1beta1
 	kind: ManagedClusterSet
@@ -29,7 +29,7 @@ We start by defining an empty ManagedClusterSet that serves as a logical groupin
 	  name: red-cluster-set
 	spec: {}
 
-We create a namespace (dba-policies) and bind this to the ManagedClusterSet so that any policies written here can only be executed against clusters in the ManagedClusterSet. For more details on how ManagedClusterSets and namespace bindings work together please refer to [here](https://open-cluster-management.io/concepts/managedclusterset/#what-is-managedclusterset). Because we also need to generate some common configuration information that will be shared across all clusters hosting PostgreSQL, this needs to be stored on the hub cluster itself as a ConfigMap in the dba-policies namespaces. Thus we also need to allow any policies written to dba-policies to propagate to the hub which is identified by the default ManagedClusterSet.
+We bind the dba-policies namespace to the ManagedClusterSet so that any policies written to here can only be executed against clusters encapsulated by the ManagedClusterSet. For more details on how ManagedClusterSets and namespace bindings work together please refer to [here](https://open-cluster-management.io/concepts/managedclusterset/#what-is-managedclusterset). Because we also need to generate common configuration information that will subsequently be shared across all managed clusters hosting a PostgreSQL server, this information needs to be centrally stored on the hub cluster as a ConfigMap resource in the dba-policies namespace, and is why the dba-policies namespace is also bound to the default ManagedClusterSet.
 
 	apiVersion: cluster.open-cluster-management.io/v1beta1
 	kind: ManagedClusterSetBinding
@@ -47,7 +47,7 @@ We create a namespace (dba-policies) and bind this to the ManagedClusterSet so t
 	spec:
 	  clusterSet: default
 
-ClusterPools encapsulate details of the underlying cloud provider infrastructure and assign any clusters spawned from here into a ManagedClusterSet. The example shown is for AWS and for brevity detailed specifications such as the install config are omitted. A corresponding ClusterPool resource for GCP also needs to be defined with a non-overlapping network address space which is a Submariner pre-requisite.
+ClusterPools encapsulate infrastructure details of the underlying cloud provider and assign any clusters created to the ManagedClusterSet named red-cluster-set. The example shown here is for AWS and for the purpose of brevity, detailed specifications such as the install configuration are omitted. A corresponding ClusterPool resource for GCP must also be defined and have non-overlapping CIDRs in order for the Submariner network that will be created later to function.
 
 	apiVersion: hive.openshift.io/v1
 	kind: ClusterPool
@@ -76,7 +76,7 @@ ClusterPools encapsulate details of the underlying cloud provider infrastructure
 	        name: red-cluster-pool-aws-creds
 	      region: ap-southeast-1
 
-To spawn a cluster we need to submit a ClusterClaim (similar in concept to how a PersistentVolumeClaim results in the creation of a PersistentVolume). The following ClusterClaims must be submitted and have custom labels that later on will help with mapping policies to managed clusters.
+To create a new managed cluster from our ClusterPool we need to submit a ClusterClaim resource (similar to how a PersistentVolumeClaim maps to the creation of a PersistentVolume). The following ClusterClaims must be submitted with custom labels which will help with the deployment of workloads, as was explained in the previous blog.
 
         apiVersion: hive.openshift.io/v1
         kind: ClusterClaim
