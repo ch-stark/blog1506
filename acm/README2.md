@@ -393,7 +393,7 @@ At this stage the resources deployed to the AWS cluster look as per the followin
 
 The last two endpointslices composed with cluster names identify the IP addresses of the local and remote PostgreSQL servers on both AWS and GCP clusters and are the result of the ServiceExport resource.
 
-The next step is to test for catastrophic loss of a cloud provider. This can be simulated using the RHACM Hibernate feature to stop a running cluster resulting in loss of network connectivity between the primary and standby PostgreSQL servers. After a number of failed re-connection attempts, the decision logic within the PostgreSQL replication manager will promote the standby server into a primary role. Before we pull the plug on the OpenShift cluster on AWS, let's take a look at how the replication manager and PgPool currently view the health of the PostgreSQL servers.
+The next step is to test for catastrophic loss of a cloud provider region which can happen due to a cascading failure, misconfiguration error or vulnerability exploit that affects the control plane logic. This can be simulated using the RHACM Hibernate feature to stop a running cluster resulting in loss of network connectivity between the primary and standby PostgreSQL servers. After a number of failed re-connection attempts, the decision logic within the PostgreSQL replication manager will promote the standby server into a primary role. Before we pull the plug on the OpenShift cluster on AWS, let's take a look at how the replication manager and PgPool currently view the health of the PostgreSQL servers.
 
 	$ repmgr -f /opt/bitnami/repmgr/conf/repmgr.conf service status
 	ID   | Name                            | Role    | Status    | Upstream                        | repmgrd | PID | Paused? | Upstream last seen
@@ -513,7 +513,7 @@ Some parting thoughts:
 
 * For a production environment we could add a third standby (on a separate cloud provider) or a witness node (on a HyperShift cluster) to establish quorum so as to avoid other possible split-brain scenarios and for strong fencinge. Doing so would move help us to achieve a RTO approaching zero.
 
-* We can make use of the fact that cloud providers located in the same region typically have low network latency (<10ms) between them. Thus our local PostgreSQL clusters can be configured for synchronous replication achieving a RPO of zero. This could be augmented with asynchronous replication to remote PostgreSQL clusters located in another region.
+* We can make use of the fact that cloud providers located in the same region typically have low network latency (<10ms) between them. Thus our local PostgreSQL clusters can be configured for synchronous replication achieving a RPO of zero. This could be augmented with asynchronous replication to remote PostgreSQL clusters located in another region for disaster recovery purposes.
 
 * Deploy a global load-balancer that spans across multiple cluster ingress endpoints and is itself not dependent on the infrastructure of any of the underlying cloud providers.
 
