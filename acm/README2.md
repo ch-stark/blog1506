@@ -2,20 +2,20 @@
 
 ## Overview
 
-In this blog we look at how to realize a cluster landing zone for the hybrid cloud architecture that was introduced in the previous [blog](https://cloud.redhat.com/blog/a-guide-to-cluster-landing-zones-for-hybrid-and-multi-cloud-architectures). We will extend it so that it can run both stateless and stateful workloads in a cloud-agnostic manner. To this end we will make use of various tools within the Red Hat Advanced Cluster Management (RHACM) toolbox for a frictionless implementation.
+In this blog we look at how to realize a cluster landing zone for our hybrid cloud architecture that was introduced in the previous [blog](https://cloud.redhat.com/blog/a-guide-to-cluster-landing-zones-for-hybrid-and-multi-cloud-architectures). In this blog We will extend the multi-tenanted operating model underpinning our solution so that it can run both stateless and stateful workloads in a "cloud agnostic" manner. To this end we will make use of various tools within the Red Hat Advanced Cluster Management for Kubernetes (RHACM) toolbox to achieve a fully integrated and frictionless implementation.
 
 ## Extending the Cluster Landing Zone
 
-In the previous blog we defined a multi-tenanted operating model for the hub to enable individual application teams to manage stateless workloads on managed clusters using ArgoCD. The needs of SREs were also considered so that they can perform cluster lifecycle operations using RHACM Policies. In this blog we extend this model to include DBAs who need to perform operations such as provisioning databases on managed clusters. The revised cluster landing zone model is depicted in the following diagram.
+In the previous blog we defined a multi-tenanted operating model for the hub site whereby we centralized management functions for both cluster admninistrators (SREs) and application teams so that they could independently provision and manage cluster lifecycles and application lifecycles. We now extend this to include DBAs who will provision stateful backend workloads that support frontend stateless workloads that application teams look after. The revised cluster landing zone operating model is depicted in the following diagram.
 
 <p align="center">
   <img src="https://github.com/jwilms1971/blog/blob/main/acm/Cluster%20Landing%20Zones%20-%20Hybrid-cloud%20advanced.png">
-  <em>Diagram 1. Cluster landing zone for a hybrid cloud architecture</em>
+  <em>Diagram 1. Cluster landing zone operating model for a hybrid cloud architecture</em>
 </p>
 
-SREs will need to configure Projects within ArgoCD to restrict DBAs operations to a specific namespace (dba-policies) including restrictions placed on the kinds of resources that can be deployed, i.e., Policies, Placements, and ConfigMaps.
+In order to share the main GitOps engine located on the hub, SREs will need to configure Projects within ArgoCD to restrict DBAs to specific namespaces (dba-policies) and include restrictions on the kinds of resources that can be deployed to here, i.e., Policies, Placements, and ConfigMaps.
 
-The diagram introduces MachinePools which are hub-side constructs that result in the creation of workers on managed clusters that can then be scaled via the RHACM console. We will be using the default worker pool for running stateless workloads and a separate machine pool, composed of a single worker node, for running stateful backend workloads, in this case PostgreSQL. PostgreSQL was chosen because it is a well-known open-source database used across many cloud-native projects and comes with built-in replication and failover capabilities which we will be leveraging for high-availability.
+The diagram above shows how workers for each OpenShift cluster are segregated into distinct MachinePools which can be auto-scaled manually or automatically via the RHACM console. We will be using the default worker MachinePool for running stateless frontend workloads, and a separate MachinePool composed of a single worker node, for running stateful backend workloads. A PostgreSQL server will be deployed to this node in an active/standby configuration whereby the primary PostgreSQL server runs on AWS and the standby PostgreSQL server runs on GCP with replication manager configured and fronted by PgPool for client-side load-balancing and connection pooling.
 
 ## Deploying the Cluster Landing Zone
 
@@ -513,7 +513,7 @@ Some parting thoughts:
 
 * For a production environment we could add a third standby (on a separate cloud provider) or a witness node (on a HyperShift cluster) to establish quorum so as to avoid other possible split-brain scenarios and for strong fencinge. Doing so would move help us to achieve a RTO approaching zero.
 
-* We can make use of the fact that cloud providers located in the same region typically have low network latency (<10ms) between them. Thus our local PostgreSQL clusters can be configured for synchronous replication achieving a RPO of zero. This could be augmented with asynchronous replication to remote PostgreSQL clusters located in another region for disaster recovery purposes.
+* We can make use of the fact that cloud providers located in the same region typically have a network latency of under 10 milliseconds. Thus our local PostgreSQL clusters can be configured for synchronous replication achieving a RPO of zero. This could be augmented with asynchronous replication to remote PostgreSQL clusters located in another region for disaster recovery purposes.
 
 * Deploy a global load-balancer that spans across multiple cluster ingress endpoints and is itself not dependent on the infrastructure of any of the underlying cloud providers.
 
