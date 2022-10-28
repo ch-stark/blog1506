@@ -13,7 +13,7 @@ In the previous blog we defined a multi-tenanted operating model for the hub sit
   <em>Diagram 1. Cluster landing zone operating model for a hybrid cloud architecture</em>
 </p>
 
-In order to share the main GitOps engine located on the hub, SREs will need to configure Projects within ArgoCD to restrict DBAs to specific namespaces (dba-policies) and include restrictions on the kinds of resources that can be deployed to here, i.e., Policies, Placements, and ConfigMaps.
+In order to share the default GitOps engine located on the hub, SREs will need to configure AppProjects within ArgoCD to restrict DBAs to specific namespaces (dba-policies) and include restrictions on the kinds of resources that can be deployed to here, i.e., Policies, Placements, and ConfigMaps.
 
 The diagram above shows how workers for each OpenShift cluster are segregated into distinct MachinePools which can be auto-scaled manually or automatically via the RHACM console. We will be using the default worker MachinePool for running stateless frontend workloads, and a separate MachinePool composed of a single worker node, for running stateful backend workloads. A PostgreSQL server will be deployed to this node in an active/standby configuration whereby the primary PostgreSQL server runs on AWS and the standby PostgreSQL server runs on GCP with replication manager configured and fronted by PgPool for client-side load-balancing and connection pooling.
 
