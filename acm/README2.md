@@ -514,4 +514,4 @@ Some parting thoughts:
 
 ## Conclusion
 
-In this blog and the previous blog we have shown how various tools from the RHACM toolbox can be used to build a non-trivial solution based on an open hybrid cloud architecture. The benefits of doing so include higher levels of availability and scalability, and independence from cloud vendors APIs.
+In this blog and the previous one we have shown how the various tools from within the RHACM toolbox can be used together to realize an open hybrid cloud architecture. The benefits of doing so include higher levels of availability and scalability, and to minimize dependence on cloud vendors APIs. Combining the open hybrid cloud architecture with a flexible mulit-tenancy operating model that caters to the often complex and evolving needs of an adaptive enterprise is key to a sucessful implemention. 
