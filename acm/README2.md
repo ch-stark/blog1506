@@ -110,7 +110,7 @@ The resulting set of managed clusters is as follows.
 
 Note that cluster names are dynamically generated as part of this process. This should not be an issue provided applications are being published using a domain name that does not include the cluster name. In the event that the cluster is recreated it will spin up with a different name even if the same ClusterClaim is submitted. To address this consider using the [appsDomain feature](https://docs.openshift.com/container-platform/4.11/networking/ingress-operator.html#nw-ingress-configuring-application-domain_configuring-ingress) or a secondary ingress controller with a custom domain name to separate cluster administration endpoints from application service delivery.
 
-By default each cluster spins up with three worker nodes which will be used to host a stateless frontend workload (PgPool). To this we add a MachinePool to host our stateful backend workload (PostgreSQL), as each type of workload typically has its own performance and availability needs.
+By default each cluster spins up with three worker nodes which will be used to host a stateless frontend workload (PgPool). To this we add a MachinePool to host our stateful backend workload (PostgreSQL), as each type of workload typically has its own performance characteristics and availability needs.
 
 	apiVersion: hive.openshift.io/v1
 	kind: MachinePool
@@ -357,7 +357,7 @@ Here we are using a mix of custom and auto-generated labels to identify managed 
 
 ## Simulating Cloud Provider Failure
 
-Once our policies have been enabled this will trigger the Policy Controller to patch the PostgreSQL StatefulSet and PgPool Deployment and spin up replicas on each managed cluster. In our setup we have limited the number of PostgreSQL and PgPool replicas to one for simplification. In a production setup the number of PgPool replicas should match the scaling needs of the application and uptime SLA requirements.
+Once our policies have been enabled this will trigger the Policy Controller to patch the PostgreSQL StatefulSet and PgPool Deployment and spin up replicas on each managed cluster. In our setup we have limited the number of PostgreSQL and PgPool replicas to one for simplification. In a production setup the number of PgPool replicas should match the scaling needs of the application and uptime SLA requirements of the service.
 
 At this stage the resources deployed to the AWS cluster are as follows.
 
