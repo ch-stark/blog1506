@@ -47,7 +47,7 @@ We bind the dba-policies namespace to the ManagedClusterSet so that any policies
 	spec:
 	  clusterSet: default
 
-ClusterPools encapsulate infrastructure details of the underlying cloud provider and assign any clusters created to the ManagedClusterSet named red-cluster-set. The example shown here is for AWS and for the purpose of brevity, detailed specifications such as the install configuration are omitted. A corresponding ClusterPool resource for GCP must also be defined and have non-overlapping CIDRs in order for the Submariner network that will be created later to function.
+ClusterPools encapsulate infrastructure details of the underlying cloud provider and assign any clusters created to the ManagedClusterSet (in this case red-cluster-set). The example shown here is for AWS and the contents of the install-config.yaml have been omitted for brevity. A corresponding ClusterPool resource for GCP must also be instantiated and have non-overlapping CIDRs so that it can join the Submariner network.
 
 	apiVersion: hive.openshift.io/v1
 	kind: ClusterPool
