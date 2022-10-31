@@ -15,7 +15,7 @@ In the previous blog we defined a multi-tenanted operating model for the hub sit
 
 In order to share the default GitOps engine located on the hub, SREs will need to configure AppProjects within ArgoCD to restrict DBAs to specific namespaces (dba-policies) and include restrictions on the kinds of resources that can be deployed to here, i.e., Policies, Placements, and ConfigMaps.
 
-The diagram above shows how workers for each OpenShift cluster are segregated into distinct MachinePools which can be scaled either manually or automatically via the RHACM console and in turn manage MachineSets on managed clusters. We will be using the default worker MachinePool for running stateless frontend workloads, and a separate MachinePool composed of a single worker node, for running stateful backend workloads. A PostgreSQL server will be deployed to this node in an active/standby configuration whereby the primary PostgreSQL server runs on AWS and the standby PostgreSQL server runs on GCP with replication manager configured and fronted by PgPool for client-side load-balancing and connection pooling.
+The diagram above shows how workers for each OpenShift cluster are segregated into distinct MachinePools which can be scaled either manually or automatically via the RHACM console and in turn manage MachineSets on spoke clusters. We will be using the default worker MachinePool for running stateless frontend workloads, and a separate MachinePool composed of a single worker node, for running stateful backend workloads. A PostgreSQL server will be deployed to this node in an active/standby configuration whereby the primary PostgreSQL server runs on AWS and the standby PostgreSQL server runs on GCP with replication manager configured and fronted by PgPool for client-side load-balancing and connection pooling.
 
 ## Deploying the Cluster Landing Zone
 
@@ -29,7 +29,7 @@ We start by defining an empty ManagedClusterSet that serves as a logical groupin
 	  name: red-cluster-set
 	spec: {}
 
-We bind the dba-policies namespace to the ManagedClusterSet so that any policies written to here can only be executed against clusters encapsulated by the ManagedClusterSet. For more details on how ManagedClusterSets and namespace bindings work together please refer to [here](https://open-cluster-management.io/concepts/managedclusterset/#what-is-managedclusterset). Because we also need to generate common configuration information that will subsequently be shared across all managed clusters hosting a PostgreSQL server, this information needs to be centrally stored on the hub cluster as a ConfigMap resource in the dba-policies namespace, and is why the dba-policies namespace is also bound to the default ManagedClusterSet.
+We bind the dba-policies namespace to the ManagedClusterSet so that any policies written to here can only be executed against clusters encapsulated by the ManagedClusterSet. For more details on how ManagedClusterSets and namespace bindings work together please refer to [here](https://open-cluster-management.io/concepts/managedclusterset/#what-is-managedclusterset). Because we also need to generate common configuration information that will subsequently be shared across all spoke clusters hosting a PostgreSQL server, this information needs to be centrally stored on the hub cluster as a ConfigMap resource in the dba-policies namespace, and is why the dba-policies namespace is also bound to the default ManagedClusterSet.
 
 	apiVersion: cluster.open-cluster-management.io/v1beta1
 	kind: ManagedClusterSetBinding
@@ -76,7 +76,7 @@ ClusterPools encapsulate infrastructure details of the underlying cloud provider
 	        name: red-cluster-pool-aws-creds
 	      region: ap-southeast-1
 
-To create a new managed cluster from our ClusterPool we need to submit a ClusterClaim resource (similar to how a PersistentVolumeClaim maps to the creation of a PersistentVolume). The following ClusterClaims must be submitted with custom labels which will help with the deployment of workloads, as was explained in the previous blog.
+To create a new spoke cluster from our ClusterPool we need to submit a ClusterClaim resource (similar to how a PersistentVolumeClaim maps to the creation of a PersistentVolume). The following ClusterClaims must be submitted with custom labels which will help with the deployment of workloads, as was explained in the previous blog.
 
         apiVersion: hive.openshift.io/v1
         kind: ClusterClaim
@@ -100,7 +100,7 @@ To create a new managed cluster from our ClusterPool we need to submit a Cluster
         spec:
           clusterPoolName: red-cluster-pool-gcp-1
 
-The resulting set of managed clusters is as follows.
+The resulting set of spoke clusters is as follows.
 
 	$ oc get managedclusters -A
 	NAME                           HUB ACCEPTED   MANAGED CLUSTER URLS                                           JOINED   AVAILABLE   AGE
@@ -137,7 +137,7 @@ By default each cluster spins up with three worker nodes which will be used to h
 	
 This YAML file makes use of templating to map a known quantity (the ClusterClaim name) to an unknown quantity (the cluster name). See the following [blog](https://cloud.redhat.com/blog/applying-policy-based-governance-at-scale-using-templates) for more details on this process and this [blog](https://cloud.redhat.com/blog/generating-governance-policies-using-kustomize-and-gitops) which explains how the Policy Generator tool that will turn YAML files into Policies.
 
-The configuration of MachinePools for each managed cluster is shown in the following output.
+The configuration of MachinePools for each spoke cluster is shown in the following output.
 
 	$ oc get machinepools -A
 	NAMESPACE                      NAME                                          POOLNAME         CLUSTERDEPLOYMENT              REPLICAS
@@ -146,7 +146,7 @@ The configuration of MachinePools for each managed cluster is shown in the follo
 	red-cluster-pool-gcp-1-8chvh   red-cluster-pool-gcp-1-8chvh-backend-worker   backend-worker   red-cluster-pool-gcp-1-8chvh   1
 	red-cluster-pool-gcp-1-8chvh   red-cluster-pool-gcp-1-8chvh-worker           worker           red-cluster-pool-gcp-1-8chvh   3
 
-With our machines instantiated as cluster nodes, we now turn our attention to establishing a cross-cluster network so that the PostgreSQL server hosted in one cluster can communicate to the PostgreSQL server hosted in another cluster. A "flattening" of the network between managed clusters is required so that services and pods in one cluster have direct line-of-sight access to services and pods in other clusters. Submariner establishes hybrid network connectivity at layer-3 of the OSI model and supports both TCP and UDP protocols using IPsec tunnels. Please refer to the [documentation](https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.6/html/add-ons/add-ons-overview#preparing-selected-hosts-to-deploy-submariner) for more details on Submariner and prerequisites.
+With our machines instantiated as cluster nodes, we now turn our attention to establishing a cross-cluster network so that the PostgreSQL server hosted in one cluster can communicate to the PostgreSQL server hosted in another cluster. A "flattening" of the network between spoke clusters is required so that services and pods in one cluster have direct line-of-sight access to services and pods in other clusters. Submariner establishes hybrid network connectivity at layer-3 of the OSI model and supports both TCP and UDP protocols using IPsec tunnels. Please refer to the [documentation](https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.6/html/add-ons/add-ons-overview#preparing-selected-hosts-to-deploy-submariner) for more details on Submariner and prerequisites.
 
 To configure Submariner we submit the following YAML as per this example for AWS, again using templates to derive cluster names.
 
@@ -186,12 +186,12 @@ Before proceeding to setup PostgreSQL check the status of the Submariner network
 
 <p align="center">
   <img src="https://github.com/jwilms1971/blog/blob/main/acm/Screenshot from 2022-10-26 12-54-17.png">
-  <em>Diagram 2. Submariner setup for two managed clusters spanning two cloud providers</em>
+  <em>Diagram 2. Submariner setup for two spoke clusters spanning two cloud providers</em>
 </p>
 
 ## Deploying PostgreSQL
 
-The following steps are intended to be executed by our DBAs using Policies which will be stored in the dba-policies namespace via the OpenShift GitOps engine running on the hub cluster. From here they will be picked up by the Policy Controller and applied to all managed clusters selected by Placement resources.
+The following steps are intended to be executed by our DBAs using Policies which will be stored in the dba-policies namespace via the OpenShift GitOps engine running on the hub cluster. From here they will be picked up by the Policy Controller and applied to all spoke clusters selected by Placement resources.
 
 Depending on whether you are using Operators or Helm charts to install PostgreSQL the steps may vary and are well-covered by the respective providers. The main considerations for deploying PostgreSQL in a hybrid cloud environment include tuning of timeouts related to networking and high-performance storage. Other factors related to a production setup are discussed later. In our setup we will be focusing on deploying PostgreSQL in an active/standby configuration with connectivity provided by the hybrid network established by Submariner. The active primary PostgreSQL server runs on a cluster in AWS and the passive standby PostgreSQL server runs on a cluster in GCP. Both PostgreSQL servers are part of a replication cluster and fronted by PgPool for load-balancing and connection pooling.
 
@@ -288,7 +288,7 @@ The following YAML references the aforementioned ConfigMap and copies values int
 
 Note that for the StatefulSet pertaining to pg-2 the value for the REPMGR_NODE_NETWORK_NAME environment variable should reference hostname1 instead of hostname0.
 
-Here is the contents of the Policy Generator configuration that will be used to ingest all of the files above and translate them into Policies that the Policy Controller will apply to the managed clusters. Note that all Policies are loaded in a disabled state as they should only be enabled by the DBA after the PostgreSQL software has been installed on each cluster.
+Here is the contents of the Policy Generator configuration that will be used to ingest all of the files above and translate them into Policies that the Policy Controller will apply to the spoke clusters. Note that all Policies are loaded in a disabled state as they should only be enabled by the DBA after the PostgreSQL software has been installed on each cluster.
 
 	apiVersion: policy.open-cluster-management.io/v1
 	kind: PolicyGenerator
@@ -334,7 +334,7 @@ Here is the contents of the Policy Generator configuration that will be used to 
 	    placement:
 	      placementPath: input/placement-red-standalone-clusters-gcp-1.yaml
 
-The Policy Generator leverages Placement resources to map Policies to managed clusters. An example Placement resource is as follows.
+The Policy Generator leverages Placement resources to map Policies to spoke clusters. An example Placement resource is as follows.
 
 	apiVersion: cluster.open-cluster-management.io/v1beta1
 	kind: Placement
@@ -353,11 +353,11 @@ The Policy Generator leverages Placement resources to map Policies to managed cl
                   - {key: env, operator: In, values: ["dev"]}
                   - {key: postgresql, operator: In, values: ["pg-1"]}
 
-Here we are using a mix of custom and auto-generated labels to identify managed clusters in scope. At no point do we ever refer to the dynamically generated name of the cluster given that this name will change whenever the cluster is rebuilt. Also note that we include a filter for clusterSets as it is possible that our DBA may be managing clusters for multiple teams using similar labels; the filter helps to ensure that policies target only managed clusters for the red team.
+Here we are using a mix of custom and auto-generated labels to identify spoke clusters in scope. At no point do we ever refer to the dynamically generated name of the cluster given that this name will change whenever the cluster is rebuilt. Also note that we include a filter for clusterSets as it is possible that our DBA may be managing clusters for multiple teams using similar labels; the filter helps to ensure that policies target only spoke clusters for the red team.
 
 ## Simulating Cloud Provider Failure
 
-Once our policies have been enabled this will trigger the Policy Controller to patch the PostgreSQL StatefulSet and PgPool Deployment and spin up replicas on each managed cluster. In our setup we have limited the number of PostgreSQL and PgPool replicas to one for simplification. In a production setup the number of PgPool replicas should match the scaling needs of the application and uptime SLA requirements of the service.
+Once our policies have been enabled this will trigger the Policy Controller to patch the PostgreSQL StatefulSet and PgPool Deployment and spin up replicas on each spoke cluster. In our setup we have limited the number of PostgreSQL and PgPool replicas to one for simplification. In a production setup the number of PgPool replicas should match the scaling needs of the application and uptime SLA requirements of the service.
 
 At this stage the resources deployed to the AWS cluster are as follows.
 
