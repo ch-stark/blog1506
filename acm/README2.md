@@ -2,7 +2,7 @@
 
 ## Overview
 
-In this blog we look at how to realize a cluster landing zone for our hybrid cloud architecture that was introduced in the previous [blog](https://cloud.redhat.com/blog/a-guide-to-cluster-landing-zones-for-hybrid-and-multi-cloud-architectures). In this blog We will extend the multi-tenanted operating model underpinning our solution so that it can run both stateless and stateful workloads in a "cloud agnostic" manner. To this end we will make use of various tools within the Red Hat Advanced Cluster Management for Kubernetes (RHACM) toolbox to achieve a fully integrated and frictionless implementation.
+In this blog we look at how to realize a cluster landing zone for our hybrid cloud architecture that was introduced in the previous [blog](https://cloud.redhat.com/blog/a-guide-to-cluster-landing-zones-for-hybrid-and-multi-cloud-architectures). In this blog We will extend the multi-tenanted operating model underpinning our solution so that it can run both stateless and stateful workloads in a "cloud agnostic" manner. To this end we will make use of various capabilities within the Red Hat Advanced Cluster Management for Kubernetes (RHACM) toolbox to achieve a fully integrated and frictionless implementation.
 
 ## Extending the Cluster Landing Zone
 
@@ -514,4 +514,4 @@ Some parting thoughts:
 
 ## Conclusion
 
-In this blog and the previous one we have shown how the various tools from within the RHACM toolbox can be used together to realize an open hybrid cloud architecture. The benefits of doing so include higher levels of availability and scalability, and to minimize dependence on cloud vendors APIs. Combining the open hybrid cloud architecture with a flexible mulit-tenancy operating model that caters to the often complex and evolving needs of an adaptive enterprise is key to a sucessful implemention. 
+In this blog which extended the cluster landing zone introduced previously, we have shown how various capabilities within the RHACM toolbox can be used together to realize an open hybrid cloud architecture. The benefits of doing so include higher levels of availability and scalability, and to minimize dependency on cloud vendors APIs. Combining the open hybrid cloud architecture with a flexible and centralized multi-tenancy operating model that caters to the evolving needs of an adaptive enterprise is key to a sucessful RHACM implemention.
