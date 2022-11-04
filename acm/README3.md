@@ -2,10 +2,14 @@
 
 ## Overview
 
-Losing data due to software corruption is the worst nightmare that every IT Operations will eventually face no matter how much resiliency has been designed into a system. Replication does not protect you from this as data that is corrupted in one site is faithfully copied to another site thus only propogating the problem. Backups might come to mind but often these have accumulated the same error as is present in the running system thus rendering them ineffective unless very stringent processes are in place to validate their efficacy continously. Also if you have a very restrictive RTO due to business criticality then restorting from backup might not be the best approach.
+Losing data due to software corruption is the worst nightmare that every IT Operations will eventually face no matter how much resiliency has been designed into a system. Replication does not protect you from this as data that is corrupted in one site is faithfully copied to another site thus only propogating the problem. Backups might come to mind but often these have accumulated the same error as is present in the running system thus rendering them ineffective unless very stringent processes are in place to validate their efficacy continously. Also if you have a very restrictive RTO then restorting from backup might not be the best approach to achieving this.
 
 In this blog we will examine how to quickly recover from loss of the ETCD database underpinning the cluster control plane using RHACM.
 
+
+## Conclusion
+
+We do not recommend doing away with backups of ETCD but instead view this is a complementary and potentialy a preferred backup and recovery strategy based on your organizations adoption of everything-as-code practices.
 
 
 
