@@ -2,7 +2,7 @@
 
 ## Overview
 
-Losing data due to software corruption is probably the worst nightmare that IT Operations can experience, even more so when the data happens to be underpinning the control plane of your cluster. Replication cannot help in this situation and will in fact just propogate the problem elsewhere thus doubing the remediation effort. Restoring from backups might come to mind but often the most recent copy has accumulated the same error especially when the cause of corruption is due to a confluence of edge-cases triggering buffer overruns or external factors.
+Losing data due to software corruption is probably the worst nightmare that IT Operations can experience, even more so when the data happens to be underpinning the control plane of your cluster. Replication cannot help in this situation and will in fact just propogate the problem elsewhere thus doubing the remediation effort. Restoring from backups might come to mind but often the most recent copy has accumulated the same error especially when the cause of corruption is due to a confluence of runtime edge-cases triggering buffer overruns or external factors impacting the integrity of the underlying cloud provider infrastructure.
 
 In this blog we will examine a last-resort strategy for recovering a cluster based on a restore-from-code approach and failing forwards.
 
