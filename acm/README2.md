@@ -2,26 +2,26 @@
 
 ## Overview
 
-In this blog we look at how to realize a cluster landing zone for our hybrid cloud architecture that was introduced in the previous [blog](https://cloud.redhat.com/blog/a-guide-to-cluster-landing-zones-for-hybrid-and-multi-cloud-architectures). In this blog We will extend the multi-tenanted operating model underpinning our solution so that it can run both stateless and stateful workloads in a "cloud agnostic" manner. To this end we will make use of various capabilities within the Red Hat Advanced Cluster Management for Kubernetes (RHACM) toolbox to achieve a fully integrated and frictionless implementation.
+In this blog we look at how to realize a cluster landing zone for the hybrid cloud architecture that was introduced in the previous [blog](https://cloud.redhat.com/blog/a-guide-to-cluster-landing-zones-for-hybrid-and-multi-cloud-architectures). We will extend the multi-tenanted operating model underpinning our solution so that it can run both stateless and stateful workloads in a "cloud agnostic" manner. To this end we will make use of various capabilities within the Red Hat Advanced Cluster Management for Kubernetes (RHACM) toolbox.
 
 ## Extending the Cluster Landing Zone
 
-In the previous blog we defined a multi-tenanted operating model for the hub site whereby we centralized management functions for both cluster administrators (SREs) and application teams so that they could independently provision and manage cluster lifecycles and application lifecycles. We now extend this to include DBAs who will provision stateful backend workloads that support frontend stateless workloads that application teams look after. The revised cluster landing zone operating model is depicted in the following diagram.
+In the previous blog we described a multi-tenancy operating model, implemented on the hub, whereby centralized management functions for cluster administrators (SREs) and application teams could occur independently an securely of each other. We now extend the personas to include DBAs who will use the hub to provision stateful backend workloads for the application team. The revised cluster landing zone is depicted in the following diagram.
 
 <p align="center">
   <img src="https://github.com/jwilms1971/blog/blob/main/acm/Cluster%20Landing%20Zones%20-%20Hybrid-cloud%20advanced.png">
   <em>Diagram 1. Cluster landing zone operating model for a hybrid cloud architecture</em>
 </p>
 
-In order to share the default GitOps engine located on the hub, SREs will need to configure AppProjects within ArgoCD to restrict DBAs to specific namespaces (dba-policies) and include restrictions on the kinds of resources that can be deployed to here, i.e., Policies, Placements, and ConfigMaps.
+In order to share the default GitOps server located on the hub, SREs will need to configure AppProjects within ArgoCD to restrict DBAs to specific namespaces (dba-policies) and include restrictions on the type of resources (Policies and Placements) that can be deployed.
 
-The diagram above shows how workers for each OpenShift cluster are segregated into distinct MachinePools which can be scaled either manually or automatically via the RHACM console and in turn manage MachineSets on spoke clusters. We will be using the default worker MachinePool for running stateless frontend workloads, and a separate MachinePool composed of a single worker node, for running stateful backend workloads. A PostgreSQL server will be deployed to this node in an active/standby configuration whereby the primary PostgreSQL server runs on AWS and the standby PostgreSQL server runs on GCP with replication manager configured and fronted by PgPool for client-side load-balancing and connection pooling.
+The diagram above shows how MachineSets on spoke clusters are aggregated into MachinePools which can be scaled either manually or automatically from the RHACM console. We will be using the default MachinePool for running stateless frontend workloads and a separate MachinePool for running stateful backend workloads. A PostgreSQL server will be deployed to each backend MachinePool in an active/standby configuration with the primary on AWS and the standby on GCP; streaming replication will be enabled for data protection. PgPool will also be deployed on the nodes in the default MachinePool for client-side load-balancing and connection pooling.
 
 ## Deploying the Cluster Landing Zone
 
-The following set of instructions are intended to be executed by the SREs as they pertain to cluster provisioning and configuration management. The YAML files shown here are intended to be applied using RHACM Policies which will be explained in more detail later.
+The following set of instructions which pertain to cluster provisioning and configuration are intended to be executed by SREs. The YAML manifests shown are intended to be applied using Policies which will be explained in more detail later.
 
-We start by defining an empty ManagedClusterSet that serves as a logical grouping for any clusters created in a public or private cloud provider.
+We start by defining an empty ManagedClusterSet that serves as a logical container for clusters created from a public or private cloud provider infrastructure.
 
 	apiVersion: cluster.open-cluster-management.io/v1beta1
 	kind: ManagedClusterSet
@@ -29,7 +29,7 @@ We start by defining an empty ManagedClusterSet that serves as a logical groupin
 	  name: red-cluster-set
 	spec: {}
 
-We bind the dba-policies namespace to the ManagedClusterSet so that any policies written to here can only be executed against clusters encapsulated by the ManagedClusterSet. For more details on how ManagedClusterSets and namespace bindings work together please refer to [here](https://open-cluster-management.io/concepts/managedclusterset/#what-is-managedclusterset). Because we also need to generate common configuration information that will subsequently be shared across all spoke clusters hosting a PostgreSQL server, this information needs to be centrally stored on the hub cluster as a ConfigMap resource in the dba-policies namespace, and is why the dba-policies namespace is also bound to the default ManagedClusterSet.
+We bind the dba-policies namespace to the newly created ManagedClusterSet (red-cluster-set) so that any policies written to here can only be executed against clusters bound to it. For more details on how ManagedClusterSets and namespace bindings work together please refer to [this](https://open-cluster-management.io/concepts/managedclusterset/#what-is-managedclusterset). Because we also need to generate configuration information that will be shared across all spoke clusters, this needs to be centrally stored on the hub as a ConfigMap in the dba-policies namespace from where it will be referenced later by another policy. This is why the dba-policies namespace is also bound to the default ManagedClusterSet which references the hub itself.
 
 	apiVersion: cluster.open-cluster-management.io/v1beta1
 	kind: ManagedClusterSetBinding
@@ -47,7 +47,7 @@ We bind the dba-policies namespace to the ManagedClusterSet so that any policies
 	spec:
 	  clusterSet: default
 
-ClusterPools encapsulate infrastructure details of the underlying cloud provider and assign any clusters created to the ManagedClusterSet (in this case red-cluster-set). The example shown here is for AWS and the contents of the install-config.yaml have been omitted for brevity. A corresponding ClusterPool resource for GCP must also be instantiated and have non-overlapping CIDRs so that it can join the Submariner network.
+ClusterPools abstract cloud provider infrastructure details and map any clusters created to the ManagedClusterSet (red-cluster-set). The example shown here is for AWS and the contents of the install-config.yaml have been omitted for brevity. A corresponding ClusterPool resource for GCP must also be defined with a non-overlapping CIDR space so that both clusters can join a Submariner network.
 
 	apiVersion: hive.openshift.io/v1
 	kind: ClusterPool
@@ -76,7 +76,7 @@ ClusterPools encapsulate infrastructure details of the underlying cloud provider
 	        name: red-cluster-pool-aws-creds
 	      region: ap-southeast-1
 
-To create a new spoke cluster from our ClusterPool we need to submit a ClusterClaim resource (similar to how a PersistentVolumeClaim maps to the creation of a PersistentVolume). The following ClusterClaims must be submitted with custom labels which will help with the deployment of workloads, as was explained in the previous blog.
+To create a new spoke cluster from our ClusterPool we need to submit a ClusterClaim resource. The following ClusterClaims are submitted with custom labels which will help when placing workloads later.
 
         apiVersion: hive.openshift.io/v1
         kind: ClusterClaim
@@ -108,9 +108,9 @@ The resulting set of spoke clusters is as follows.
 	red-cluster-pool-aws-1-4thqz   true           https://api.red-cluster-pool-aws-1-4thqz.aws.jwilms.net:6443   True     True        4h37m
 	red-cluster-pool-gcp-1-8chvh   true           https://api.red-cluster-pool-gcp-1-8chvh.gcp.jwilms.net:6443   True     True        4h45m
 
-Note that cluster names are dynamically generated as part of this process. This should not be an issue provided applications are being published using a domain name that does not include the cluster name. In the event that the cluster is recreated it will spin up with a different name even if the same ClusterClaim is submitted. To address this consider using the [appsDomain feature](https://docs.openshift.com/container-platform/4.11/networking/ingress-operator.html#nw-ingress-configuring-application-domain_configuring-ingress) or a secondary ingress controller with a custom domain name to separate cluster administration endpoints from application service delivery.
+Note that cluster names are dynamically generated as part of this process. This should not be an issue provided applications are being published using a domain name that does not include the cluster name. In the event that the cluster is recreated it will spin up with a different name even if the same ClusterClaim is submitted. To address this consider using the [appsDomain feature](https://docs.openshift.com/container-platform/4.11/networking/ingress-operator.html#nw-ingress-configuring-application-domain_configuring-ingress) or a secondary ingress controller with a custom domain name to separate cluster administration endpoints from application delivery.
 
-By default each cluster spins up with three worker nodes which will be used to host a stateless frontend workload (PgPool). To this we add a MachinePool to host our stateful backend workload (PostgreSQL), as each type of workload typically has its own performance characteristics and availability needs.
+By default each cluster spins up with three worker nodes which will be used to host stateless frontend workloads such as PgPool. To also host a stateful backend workload (PostgreSQL) we need to add a MachinePoolwith a specific machine configuration to match expected workload characteristics and isolation requirements.
 
 	apiVersion: hive.openshift.io/v1
 	kind: MachinePool
@@ -135,9 +135,9 @@ By default each cluster spins up with three worker nodes which will be used to h
 	      type: m6i.xlarge
 	  replicas: 1
 	
-This YAML file makes use of templating to map a known quantity (the ClusterClaim name) to an unknown quantity (the cluster name). See the following [blog](https://cloud.redhat.com/blog/applying-policy-based-governance-at-scale-using-templates) for more details on this process and this [blog](https://cloud.redhat.com/blog/generating-governance-policies-using-kustomize-and-gitops) which explains how the Policy Generator tool that will turn YAML files into Policies.
+This YAML manifest makes use of Go templating to map a known quantity (static ClusterClaim name) to an unknown quantity (dynamic cluster name). See the following [blog](https://cloud.redhat.com/blog/applying-policy-based-governance-at-scale-using-templates) for more details, and this [blog](https://cloud.redhat.com/blog/generating-governance-policies-using-kustomize-and-gitops) which explains how the Policy Generator tool processes templates.
 
-The configuration of MachinePools for each spoke cluster is shown in the following output.
+The resulting MachinePools for each spoke cluster is shown in the following output.
 
 	$ oc get machinepools -A
 	NAMESPACE                      NAME                                          POOLNAME         CLUSTERDEPLOYMENT              REPLICAS
@@ -146,9 +146,9 @@ The configuration of MachinePools for each spoke cluster is shown in the followi
 	red-cluster-pool-gcp-1-8chvh   red-cluster-pool-gcp-1-8chvh-backend-worker   backend-worker   red-cluster-pool-gcp-1-8chvh   1
 	red-cluster-pool-gcp-1-8chvh   red-cluster-pool-gcp-1-8chvh-worker           worker           red-cluster-pool-gcp-1-8chvh   3
 
-With our machines instantiated as cluster nodes, we now turn our attention to establishing a cross-cluster network so that the PostgreSQL server hosted in one cluster can communicate to the PostgreSQL server hosted in another cluster. A "flattening" of the network between spoke clusters is required so that services and pods in one cluster have direct line-of-sight access to services and pods in other clusters. Submariner establishes hybrid network connectivity at layer-3 of the OSI model and supports both TCP and UDP protocols using IPsec tunnels. Please refer to the [documentation](https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.6/html/add-ons/add-ons-overview#preparing-selected-hosts-to-deploy-submariner) for more details on Submariner and prerequisites.
+We now turn our attention to establishing a cross-cluster network so that the PostgreSQL server hosted in one cluster can communicate to the PostgreSQL server hosted in another cluster. A "flattening" of the network between spoke clusters is required so that services and pods in one cluster have direct line-of-sight access to services and pods in other clusters. Submariner establishes hybrid network connectivity at layer-3 of the OSI model and supports both TCP and UDP protocols using IPsec tunnels. Please refer to the [documentation](https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.6/html/add-ons/add-ons-overview#preparing-selected-hosts-to-deploy-submariner) for more details on Submariner and prerequisites.
 
-To configure Submariner we submit the following YAML as per this example for AWS, again using templates to derive cluster names.
+To configure Submariner we submit the following YAML manifest as per this example for AWS, again using templates to derive cluster names.
 
 	apiVersion: addon.open-cluster-management.io/v1alpha1
 	kind: ManagedClusterAddOn
