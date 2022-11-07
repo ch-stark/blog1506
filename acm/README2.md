@@ -6,7 +6,7 @@ In this blog we look at how to realize a cluster landing zone for the hybrid clo
 
 ## Extending the Cluster Landing Zone
 
-In the previous blog we described a multi-tenancy operating model, implemented on the hub, whereby centralized management functions for cluster administrators (SREs) and application teams could occur independently an securely of each other. We now extend the personas to include DBAs who will use the hub to provision stateful backend workloads for the application team. The revised cluster landing zone is depicted in the following diagram.
+In the previous blog we described a multi-tenancy operating model, implemented on the hub, whereby centralized management functions for cluster administrators (SREs) and application teams could occur independently and securely of each other. We now extend the personas to include DBAs who will use the hub to provision stateful backend workloads for the application team. The revised cluster landing zone is depicted in the following diagram.
 
 <p align="center">
   <img src="https://github.com/jwilms1971/blog/blob/main/acm/Cluster%20Landing%20Zones%20-%20Hybrid-cloud%20advanced.png">
@@ -432,7 +432,7 @@ The next step is to test for a catastrophic loss of a cloud provider which can h
 	replication_sync_state | 
 	last_status_change     | 2022-10-26 00:55:44
 
-Everthing looks good and we can login to the RHAC console and hibernate the cluster running the primary PostgreSQL server.
+Everything looks good and we can login to the RHAC console and hibernate the cluster running the primary PostgreSQL server.
 
 <p align="center">
   <img src="https://github.com/jwilms1971/blog/blob/main/acm/Screenshot from 2022-10-26 09-37-46.png">
@@ -514,4 +514,4 @@ Some parting thoughts:
 
 ## Conclusion
 
-In this blog we have shown how the tools wihtin the RHACM toolbox can be used together to realize an open hybrid cloud architecture. The benefits of doing so include higher levels of availability and scalability, and minimize dependency on cloud vendors APIs. Combining the open hybrid cloud architecture with a centralized multi-tenancy operating model caters to the evolving needs of an adaptive enterprise and keeps operating costs down.
+In this blog we have shown how the tools within the RHACM toolbox can be used together to realize an open hybrid cloud architecture. The benefits of doing so include higher levels of availability and scalability, and minimize dependency on cloud vendors APIs. Combining the open hybrid cloud architecture with a centralized multi-tenancy operating model caters to the evolving needs of an adaptive enterprise and keeps operating costs down.
