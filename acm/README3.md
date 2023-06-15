@@ -14,11 +14,11 @@ With the introduction of multi-hub federation it is now possible to segment the 
   <img src="https://github.com/jwilms1971/blog/blob/main/acm/Cluster%20Landing%20Zone%20-%20Pattern%203c.png">
 </p>
 
-Note that as in previous patterns, it is possible to have managed clusters sets that are either dedicated or shared between application development teams. Either way, appropriate guardrails should be put in place by the global hub and delegated cluster administrators to prevent any undesirable interaction patterns. Tools such as Gatekeeper (included with RHACM), Kyverno and others can help in this space, along with appropriate RHACM Policies to harden the cluster security posture which can be found <a href="https://github.com/open-cluster-management-io/policy-collection/tree/main/policygenerator/policy-sets/community/" rel="nofollow">here</a>.
+Note that as in previous patterns, it is possible to have managed cluster sets that are either dedicated or shared between application development teams. Either way, appropriate guardrails should be put in place by the global hub and delegated cluster administrators to prevent any undesirable interaction patterns. Tools such as Gatekeeper (included with RHACM), Kyverno and others can help in this space, along with appropriate RHACM Policies to harden the cluster security posture which can be found <a href="https://github.com/open-cluster-management-io/policy-collection/tree/main/policygenerator/policy-sets/community/" rel="nofollow">here</a>.
 
 In addition to addressing organizational multi-tenancy requirements, other reasons for considering a multi-hub topology include business continuity in the event of a large-scale disaster.
 
 
 ## Conclusion
 
-Multi-hub federation offers a new way of segmenting the fleet of managed clusters to support segmentation of the cluster fleet along multiple boundaries. The right choice of multi-tenancy pattern will depend very much on a customer's operating model and desired level of complexity. In this series of blogs we have demonstrated several multi-tenancy patterns and how RHACM can be used to implementt these. 
+Multi-hub federation offers a new way of segmenting the fleet of managed clusters to support segmentation of the cluster fleet along multiple boundaries. The right choice of multi-tenancy pattern will depend very much on a customer's operating model and desired level of complexity. In this series of blogs we have demonstrated several multi-tenancy patterns and how RHACM can be used to implement these. 
