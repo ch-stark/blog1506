@@ -13,7 +13,7 @@ Before Global Hub the only way to segment a managed cluster fleet was from a sin
 With the introduction of Global Hub it is now possible to segment the cluster fleet at the operational layer first, and susbsequently at the team layer, as shown in the diagram below. This is much more natural pattern that reflects how many customers in regulated enterprise operate today. The Global Hub establishes a federated view (single pane-of-glass) across the managed cluster fleet, whilst allowing delegation of a set of clusters to operational teams based on the principle of Separation of Concerns.
 
 <p align="center">
-  <img src="https://github.com/jwilms1971/blog/blob/main/acm/Cluster%20Landing%20Zone%20-%20Pattern%203b.png">
+  <img src="https://github.com/jwilms1971/blog/blob/main/acm/Cluster%20Landing%20Zone%20-%20Pattern%203c.png">
 </p>
 
 Note that as in previous patterns, it is possible to have managed clusters sets that are either dedicated or shared between teams. Either way, appropriate guardrails should be put in place to prevent any undesirable interaction patterns. Tools such as Gatekeeper (included with RHACM), Kyverno and others can help with this.
