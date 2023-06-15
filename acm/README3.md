@@ -12,6 +12,10 @@ Before Global Hub the only way to segment a managed cluster fleet was from a sin
 
 With the introduction of Global Hub it is now possible to segment the cluster fleet at the operational layer first, and susbsequently at the team layer, as shown in the diagram below. This is much more natural pattern that reflects how many customers in regulated enterprise operate today. The Global Hub establishes a federated view (single pane-of-glass) across the managed cluster fleet, whilst allowing delegation of a set of clusters to operational teams based on the principle of Separation of Concerns.
 
+<p align="center">
+  <img src="https://github.com/jwilms1971/blog/blob/main/acm/Cluster%20Landing%20Zone%20-%20Pattern%203b.png">
+</p>
+
 Note that as in previous patterns, it is possible to have managed clusters sets that are either dedicated or shared between teams. Either way, appropriate guardrails should be put in place to prevent any undesirable interaction patterns. Tools such as Gatekeeper (included with RHACM), Kyverno and others can help with this.
 
 The hub administrator is responsible for defining the RHACM Policies that establish not only the global hub but alse each of the federated hub members. The hub administrator then delegates control of each hub member to a separate operations team responsible for the environment-based clusters that the hub manages. The local hub administrators in turn define the right mix of managed cluster sets based on user requirements, and bind these to dedicated ArgoCD instances that teams can use for deploying their applications from the hub. Application development teams have highly restrictive access to the hub (typically to a single namespace and specific APIs only). Application development teams have also access to the RHACM UI so that they can leverage Search capabilities to find resources deployed. In the event of breakglass localised accounts on the managed clusters can be temporarily allowed to support launching of ephemeral containers for debugging purposes.
